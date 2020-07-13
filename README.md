@@ -19,7 +19,10 @@ This version (cshelton/PacMan-ctf github repo) was modified by Christian
 Shelton (cshelton@cs.ucr.edu) on June 23, 2020 to run under Python 3.
 
 ### Important Note
-The main work was done in a different fork called tomehomme/CS179M-strawberry-cake-pacman-ctf. The version0 forked was created to turn in the work.
+
+**Main Branch:** The code has been merged and tested in the branch under the name "Agent0". Please refer to this branch to see our work and test our code.
+
+**Workflow:** The main work was done in a different fork called tomehomme/CS179M-strawberry-cake-pacman-ctf. The version0 forked was created to turn in the work.
 Please refer to the other repository in order to see more commits and work stats.
 
 
