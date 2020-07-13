@@ -18,6 +18,10 @@ Pieter Abbeel (pabbeel@cs.berkeley.edu).
 This version (cshelton/PacMan-ctf github repo) was modified by Christian
 Shelton (cshelton@cs.ucr.edu) on June 23, 2020 to run under Python 3.
 
+### Important Note
+The main work was done in a different fork called tomehomme/CS179M-strawberry-cake-pacman-ctf. The version0 forked was created to turn in the work.
+Please refer to the other repository in order to see more commits and work stats.
+
 
 ## Agents Stragety
 The agents both have an aggressive strategy.

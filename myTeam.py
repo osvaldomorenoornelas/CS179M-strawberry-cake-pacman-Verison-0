@@ -543,48 +543,32 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
   """
   This fuction checks if it is worth it to retreave what has been lost or to 
   just play as normal
-
-  self.getFood(gameState) compare to self.getFood(self.observationHistory[-3])
-  len(getFood(gameState).asList())
-
   """
   def eatOrRetreat(self, gameState):
     #get the amout of food that was lost
 
+    #failsafe default of 5
     foodLost = 5
 
-    #self.numFoodCarrying // getAgentState(self.index)
-
     if self.observationHistory[-1]:
-      #currentFood = self.getFood(gameState)
+      #get the previos status of the game
       prevPrevFood = len(self.getFood(self.observationHistory[0]).asList())
       prevFood     = len(self.getFood(self.observationHistory[-1]).asList())
+
+      #if playing as red, calculate how much food we had available in the prev game on the blue side
+      #else, do the same but on the red side
       if self.red:
         AgentStateScore = len(self.getPreviousObservation().getBlueFood().asList())
       else:
-        #print("blue Math")
         AgentStateScore = len(self.getPreviousObservation().getRedFood().asList())
-      #print("AgentStateScore: ",  AgentStateScore)
-      # print("PPfoodCount: ", prevPrevFood)
-      # print("PfoodCount: ",  prevFood)
-      #AgentState = self.getPreviousObservation().getAgentState(self.index)
-      # AgentStateScore = len(self.getPreviousObservation().getBlueFood().asList())
-      # print("AgentStateScore: ",  AgentStateScore)
+      
+      #food lost is the food in current - last round
       foodLost = abs(AgentStateScore - prevFood)
 
-
-    #to do --> get the amount of food Lost
-    #prev = self.getPreviousObservation()
-    #prevPrev = self.getPreviousObservation().getPreviousObservation()
-    #if prev and prevPrev:
-      #foodLost = len(prevPrev.getAgentState(self.index).getFood().asList())
-
     #if the amount of food >= 5 return true
-    # print("Food Lost: ", foodLost)
     if foodLost >= 5:
-      # print("True")
       return True
-    # print("false")
+    
     return False
 
         
