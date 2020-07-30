@@ -94,7 +94,7 @@ class QLearningAgent(ReflexCaptureAgent):
 
         # Q Value functions
         self.epsilon = 0.05  # exploration prob
-        self.alpha = 0.1  # learning rate --> start with a large like 0.1 then exponentially smaller like 0.01, 0.001
+        self.alpha = 0.01  # learning rate --> start with a large like 0.1 then exponentially smaller like 0.01, 0.001
         self.gamma = 0.8  # discount rate to prevent overfitting
         # is a counter of each state and action Q(s,a) = reward
         self.QValues = util.Counter()
@@ -108,28 +108,30 @@ class QLearningAgent(ReflexCaptureAgent):
         # self.features = util.Counter()
         self.weights = []
         self.weights = readWeights()
-        self.weightInitialization()
+        # self.weightInitialization()
         print(self.weights)
 
     def getEnemyDistance(self, gameState):
-        enemies = [gameState.getAgentState(i)
-                   for i in self.getOpponents(gameState)]
-        numEnemies = len([a for a in enemies if not a.isPacman])
-        # holds the ghosts that we can see
-        ghosts = [a for a in enemies if not a.isPacman and a.getPosition()
-                  != None]
-        if len(ghosts) < 1:
-            return 0
-        dists = [self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), a.getPosition())
-                 for a in ghosts]
-        return min(dists)
+        if gameState.getAgentState(self.index).isPacman:
+            enemies = [gameState.getAgentState(i)
+                    for i in self.getOpponents(gameState)]
+            numEnemies = len([a for a in enemies if not a.isPacman])
+            # holds the ghosts that we can see
+            ghosts = [a for a in enemies if not a.isPacman and a.getPosition()
+                    != None]
+            if len(ghosts) < 1:
+                return 0
+            dists = [self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), a.getPosition())
+                    for a in ghosts]
+            return min(dists)
+        return 0
 
     def weightInitialization(self):
         """
-        initializes 4 weights randomly from [0,1]. --> 4 Features = 4 weights
+        initializes 3 weights randomly from [0,1]. --> 3 Features = 3 weights
         Only call this ONCE --> for the first time running the training
         """
-        self.weights = [random.random() for _ in range(4)]
+        self.weights = [random.random() for _ in range(3)]
 
     def distToFood(self, gameState):
         """
@@ -209,7 +211,7 @@ class QLearningAgent(ReflexCaptureAgent):
 
     def bestAction(self, gameState):
         """
-        Gets the best action given the current state. Looks at the Q table and find the action with the highest value
+        Gets the best action given the current state. Find the action with the highest Q value using weights
         """
         actions = gameState.getLegalActions(self.index)
         if Directions.STOP in actions:
@@ -224,17 +226,6 @@ class QLearningAgent(ReflexCaptureAgent):
                 highestQVal = temp
         return bestAction
 
-    # def Score(self, gameState):
-    #     """
-    #     Gets the score of the current gameState
-    #     Score = rewards - punishment
-    #     """
-    #     score = 0
-    #     score += self.numFoodCarrying
-    #     score += self.getScoreIncrease(gameState)
-    #     score += -1 if self.checkDeath(gameState) else 0
-    #     score += self.distToFood(gameState)*
-    #     return score
     def isCapsuleEaten(self, gameState):
         """
         Checks if a capsule was eaten by our team pacman. If it was eaten, then this function also
@@ -279,14 +270,16 @@ class QLearningAgent(ReflexCaptureAgent):
         score = 0
         # rewards
         # add if we eat the ghost
-        score += 0.5 if self.ateFood(gameState) else 0
+        score += 1.25 if self.ateFood(gameState) else 0
         score += self.getScoreIncrease(gameState)
         # punishment
         score -= 0.5 if self.checkDeath(gameState) else 0
-
-        # if the game is over reward if we win, else penalty if we lose
+        minDistance = min([self.getMazeDistance(gameState.getAgentState(
+            self.index).getPosition(), food) for food in self.getFood(gameState).asList()])
+        score += np.reciprocal(float(minDistance)) # distance to closest food
+        # if the game is over big reward if we win, else penalty if we lose
         if gameState.isOver():
-            score += self.getScore(gameState)
+            score += self.getScore(gameState)*2
         return score
 
     def ateFood(self, gameState):
@@ -308,9 +301,9 @@ class QLearningAgent(ReflexCaptureAgent):
         successor = gameState.generateSuccessor(self.index, action)
         features = [1] # feature 0 is always 1
        
-        features += [self.getEnemyDistance(successor)]  # distance to a visible enemy
-        features += [self.getMazeDistance(
-            self.start, successor.getAgentState(self.index).getPosition())] # distance from start
+        features += [self.getEnemyDistance(successor)*0.1]  # distance to a visible enemy
+        # features += [self.getMazeDistance(
+        #     self.start, successor.getAgentState(self.index).getPosition())*0.3] # distance from start
         minDistance = min([self.getMazeDistance(successor.getAgentState(
             self.index).getPosition(), food) for food in self.getFood(successor).asList()])
         # choose action that decreases distance
@@ -322,13 +315,13 @@ class QLearningAgent(ReflexCaptureAgent):
         # wi←wi+ηδFi(s,a).
         # print('weight', weight)
         weight = weight + self.alpha*delta*feature
+        # print("new weight", weight)
         return weight
 
     def updateWeights(self, last_state, last_action, reward, max_q):
         # wi←wi+ηδFi(s,a).
         if (len(self.previousGameStates) > 0):
-            delta = reward + self.gamma*max_q - \
-                self.getQValue(last_state, last_action)   # δ=r+γQ(s',a')-Q(s,a)
+            delta = reward + self.gamma*max_q - self.getQValue(last_state, last_action)   # δ=r+γQ(s',a')-Q(s,a)
             for i in range(0, len(self.weights)):
                 self.weights[i] = self.calculateNewWeight(
                     self.weights[i], delta, self.getFeatures(last_state, last_action)[i])
@@ -345,7 +338,7 @@ class QLearningAgent(ReflexCaptureAgent):
         # reward of gameState to new gamestate
         # reward = self.Score(gameState)-self.score
         reward = self.getReward(gameState)
-        print('reward', reward)
+        # print('reward', reward)
 
         if len(self.previousGameStates) > 0:
             last_state = self.previousGameStates[-1]
@@ -355,10 +348,10 @@ class QLearningAgent(ReflexCaptureAgent):
             self.updateWeights(last_state, last_action, reward, max_q)
 
         # e-greedy
-        # if util.flipCoin(self.epsilon):
-        #     action = random.choice(actions)
-        # else:
-        action = self.bestAction(gameState)
+        if util.flipCoin(self.epsilon):
+            action = random.choice(actions)
+        else:
+            action = self.bestAction(gameState)
 
         # update the score for the current state
         # self.score = self.Score(gameState)
