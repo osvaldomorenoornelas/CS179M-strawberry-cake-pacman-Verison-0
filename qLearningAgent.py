@@ -16,7 +16,6 @@ import numpy as np
 
 # calculate reward by the transition of each state
 
-
 # init w = w_1,w_2,w_3,..w_n randomly in [0,1]
 # for each episonde,
 # 𝑠←initial state of episode
@@ -58,6 +57,10 @@ def readWeights():
         weights = pickle.load(handle)
     return weights
 
+def readFeatures():
+    with open('./Features.pickle', 'rb') as handle:
+        features = pickle.load(handle)
+    return features
 
 def createTeam(firstIndex, secondIndex, isRed,
                first='QLearningAgent', second='DefensiveReflexAgent'):
@@ -94,7 +97,7 @@ class QLearningAgent(ReflexCaptureAgent):
 
         # Q Value functions
         self.epsilon = 0.05  # exploration prob
-        self.alpha = 0.01  # learning rate --> start with a large like 0.1 then exponentially smaller like 0.01, 0.001
+        self.alpha = 0.001  # learning rate --> start with a large like 0.1 then exponentially smaller like 0.01, 0.001
         self.gamma = 0.8  # discount rate to prevent overfitting
         # is a counter of each state and action Q(s,a) = reward
         self.QValues = util.Counter()
@@ -107,9 +110,12 @@ class QLearningAgent(ReflexCaptureAgent):
         self.previousActionTaken = []
         # self.features = util.Counter()
         self.weights = []
+        # [2.316680230669802, 1.6638907160685494, 5.635170662376932]
         self.weights = readWeights()
+        # self.features = readFeatures()
+        # print(len(self.features))
         # self.weightInitialization()
-        print(self.weights)
+        # print(self.weights)
 
     def getEnemyDistance(self, gameState):
         if gameState.getAgentState(self.index).isPacman:
@@ -340,18 +346,21 @@ class QLearningAgent(ReflexCaptureAgent):
         reward = self.getReward(gameState)
         # print('reward', reward)
 
+        # e-greedy
+        if util.flipCoin(self.epsilon):
+            action = random.choice(actions)
+        else:
+            action = self.bestAction(gameState)
+
         if len(self.previousGameStates) > 0:
             last_state = self.previousGameStates[-1]
             last_action = self.previousActionTaken[-1]
             max_q = self.getMaxQ(gameState)
             # self.updateQValue(last_state, last_action, reward, max_q)
             self.updateWeights(last_state, last_action, reward, max_q)
+            # self.features.append({'features':self.getFeatures(gameState,action),'value':max_q})
 
-        # e-greedy
-        if util.flipCoin(self.epsilon):
-            action = random.choice(actions)
-        else:
-            action = self.bestAction(gameState)
+
 
         # update the score for the current state
         # self.score = self.Score(gameState)
@@ -380,6 +389,11 @@ class QLearningAgent(ReflexCaptureAgent):
         # put the Q values back into file
         # with open('./qValueFile.pickle', 'wb') as handle:
         #     pickle.dump(self.QValues, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # with open('./Features.pickle', 'wb') as handle:
+        #     pickle.dump(self.features, handle, protocol=pickle.HIGHEST_PROTOCOL)
         # put weights into file
         with open('./LinearApproxFile.pickle', 'wb') as handle:
             pickle.dump(self.weights, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+# [2.0963943742225535, 1.2076193305869922, 5.667179874740193]
