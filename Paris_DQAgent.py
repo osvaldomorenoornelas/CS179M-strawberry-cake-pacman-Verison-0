@@ -178,7 +178,7 @@ class DQPacmanAgent(ReflexCaptureAgent):
 
         # self.loadData()
         # print(len(self.Data))
-
+        print(self.weights)
         self.Features = list()
 
         # self.evaluate(self.Data, self.model)
@@ -341,8 +341,8 @@ class DQPacmanAgent(ReflexCaptureAgent):
         successor = gameState.generateSuccessor(self.index, action)
  
         features = [1]  # first feature is always 1
-        features += [self.getEnemyDistance(successor)]
-        features += [self.distToFood(successor)]
+        features += [self.getEnemyDistance(successor)*0.1]
+        features += [self.distToFood(successor)*0.1]
         return features
 
     def getQValue(self, gameState, action):
@@ -352,24 +352,24 @@ class DQPacmanAgent(ReflexCaptureAgent):
         Q Value yielded from being at state s and selecting action a, is the immediate reward received, r(s,a), plus the highest Q Value possible from state s’ (which is the state we ended up in after taking action a from state s). 
         """
         # Qw(s,a) = r(s,a) + gamma*max_aQ(s',a)
-        # successor = self.getSuccessor(gameState, action)
-        # reward = self.getReward(successor)
-        # maxQNextState = 0
-        # # get max Q value of next state after taking that action
-        # legalActions = successor.getLegalActions(self.index)
-        # for a in legalActions:
-        #     nextSuccessor = self.getSuccessor(successor, a)
-        #     QNextState = self.getReward(nextSuccessor)
-        #     if QNextState > maxQNextState:
-        #         maxQNextState = QNextState
-        # Qval = reward + self.gamma*maxQNextState
-        # return Qval
+        successor = self.getSuccessor(gameState, action)
+        reward = self.getReward(successor)
+        maxQNextState = 0
+        # get max Q value of next state after taking that action
+        legalActions = successor.getLegalActions(self.index)
+        for a in legalActions:
+            nextSuccessor = self.getSuccessor(successor, a)
+            QNextState = self.getReward(nextSuccessor)
+            if QNextState > maxQNextState:
+                maxQNextState = QNextState
+        Qval = reward + self.gamma*maxQNextState
+        return Qval
 
         # Qw(s,a) = w0+w1 F1(s,a) + ...+ wn Fn(s,a)
-        Qval = 0
-        features = self.getFeatures(gameState, action)
-        for i in range(len(self.weights)):
-            Qval += self.weights[i]*features[i]
+        # Qval = 0
+        # features = self.getFeatures(gameState, action)
+        # for i in range(len(self.weights)):
+        #     Qval += self.weights[i]*features[i]
         return Qval
 
     def loadData(self):
@@ -535,7 +535,7 @@ class DQPacmanAgent(ReflexCaptureAgent):
         self.Data.append((self.getFeatures(gameState,bestAction),maxQ))
         self.Features.append(Tensor(self.getFeatures(gameState,bestAction)))
 
-        predict = self.predict(self.Features[-1], self.model)
+        # predict = self.predict(self.Features[-1], self.model)
         # print(predict)
        
 
@@ -546,7 +546,7 @@ class DQPacmanAgent(ReflexCaptureAgent):
         Last Update of the Qvalues and pushes the Qvalue table back into file
         """
         # self.TrainModel(self.Data,self.model)
-        print('eval',self.evaluate(self.Data,self.model))
+        # print('eval',self.evaluate(self.Data,self.model))
 
         print("game over. Weights:")
         print(self.weights)
