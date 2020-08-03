@@ -180,13 +180,10 @@ class DQNetwork(object):
     def predict(self, rowData, model):
         #convert row to data
         rowData = Tensor([rowData])
-
         #create a prediction
         modelData = model(rowData)
-
         #get the numpy Data
         modelData = modelData.detach().numpy()
-
         return modelData
 
 

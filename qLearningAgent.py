@@ -94,8 +94,8 @@ class QLearningAgent(ReflexCaptureAgent):
 
         # Q Value functions
         self.epsilon = 0.05  # exploration prob
-        self.alpha = 0.01  # learning rate --> start with a large like 0.1 then exponentially smaller like 0.01, 0.001
-        self.gamma = 0.8  # discount rate to prevent overfitting
+        self.alpha = 0.1  # learning rate --> start with a large like 0.1 then exponentially smaller like 0.01, 0.001
+        self.gamma = 0.90  # discount rate to prevent overfitting
         # is a counter of each state and action Q(s,a) = reward
         self.QValues = util.Counter()
         # self.QValues = readQValues()  # is a counter of each state and action Q(s,a) = reward
@@ -107,8 +107,8 @@ class QLearningAgent(ReflexCaptureAgent):
         self.previousActionTaken = []
         # self.features = util.Counter()
         self.weights = []
+        self.weightInitialization()
         self.weights = readWeights()
-        # self.weightInitialization()
         print(self.weights)
 
     def getEnemyDistance(self, gameState):
@@ -270,7 +270,7 @@ class QLearningAgent(ReflexCaptureAgent):
         score = 0
         # rewards
         # add if we eat the ghost
-        score += 1.25 if self.ateFood(gameState) else 0
+        score += 1.5 if self.ateFood(gameState) else 0
         score += self.getScoreIncrease(gameState)
         # punishment
         score -= 0.5 if self.checkDeath(gameState) else 0
