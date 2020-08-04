@@ -105,7 +105,7 @@ class QLearningAgent(ReflexCaptureAgent):
         
         
         self.weights = readWeights()
-        self.weightInitialization()
+        # self.weightInitialization()
 
 
     def getEnemyDistance(self, gameState):
