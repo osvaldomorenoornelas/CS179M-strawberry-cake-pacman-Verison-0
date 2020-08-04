@@ -96,7 +96,7 @@ class QLearningAgent(ReflexCaptureAgent):
         self.numFoodCarrying = 0
 
         # Q Value functions
-        self.epsilon = 0.05  # exploration prob
+        self.epsilon = 0.005  # exploration prob
         self.alpha = 0.001  # learning rate --> start with a large like 0.1 then exponentially smaller like 0.01, 0.001
         self.gamma = 0.8  # discount rate to prevent overfitting
         # is a counter of each state and action Q(s,a) = reward
@@ -109,13 +109,17 @@ class QLearningAgent(ReflexCaptureAgent):
         self.previousGameStates = []
         self.previousActionTaken = []
         # self.features = util.Counter()
-        self.weights = []
+        self.weights =  list()
         # [2.316680230669802, 1.6638907160685494, 5.635170662376932]
+        # [2.098754896275266, 1.4586679144636339, 5.145779499944092]
+
         self.weights = readWeights()
+        # self.weights = [2.098754896275266, 1.4586679144636339, 5.145779499944092]
         # self.features = readFeatures()
         # print(len(self.features))
         # self.weightInitialization()
         # print(self.weights)
+        # [2.450014261728269, 0.09639381124804589, 8.38406654878239] old
 
     def getEnemyDistance(self, gameState):
         if gameState.getAgentState(self.index).isPacman:
@@ -280,12 +284,14 @@ class QLearningAgent(ReflexCaptureAgent):
         score += self.getScoreIncrease(gameState)
         # punishment
         score -= 0.5 if self.checkDeath(gameState) else 0
-        minDistance = min([self.getMazeDistance(gameState.getAgentState(
-            self.index).getPosition(), food) for food in self.getFood(gameState).asList()])
-        score += np.reciprocal(float(minDistance)) # distance to closest food
+        foodList =self.getFood(gameState).asList()
+        if len(foodList):
+            minDistance = min([self.getMazeDistance(gameState.getAgentState(
+                self.index).getPosition(), food) for food in foodList])
+            score += np.reciprocal(float(minDistance)) # distance to closest food
         # if the game is over big reward if we win, else penalty if we lose
-        if gameState.isOver():
-            score += self.getScore(gameState)*2
+        # score += self.getScore(gameState)*2
+
         return score
 
     def ateFood(self, gameState):
@@ -305,15 +311,26 @@ class QLearningAgent(ReflexCaptureAgent):
         features of the state
         """
         successor = gameState.generateSuccessor(self.index, action)
+        position = successor.getAgentState(self.index).getPosition()
         features = [1] # feature 0 is always 1
        
-        features += [self.getEnemyDistance(successor)*0.1]  # distance to a visible enemy
+        features += [self.getEnemyDistance(successor)*0.5]  # distance to a visible enemy
         # features += [self.getMazeDistance(
         #     self.start, successor.getAgentState(self.index).getPosition())*0.3] # distance from start
-        minDistance = min([self.getMazeDistance(successor.getAgentState(
-            self.index).getPosition(), food) for food in self.getFood(successor).asList()])
+        if len(self.getFood(successor).asList()) > 2:
+            # errors when less than 2 for some reason
+            minDistance = min([self.getMazeDistance(position, food) for food in self.getFood(successor).asList()])
+        else:
+            minDistance = self.getMazeDistance(self.start,position)
         # choose action that decreases distance
-        features += [np.reciprocal(float(minDistance))] # distance to closest food
+        # print(np.reciprocal(float(minDistance)))
+        if self.ateFood(successor):
+            # Because when we eat the closest food, the distance is 0 --> eating is bad
+            # we will make it so that we give it some nonzero weight
+            # print('ate')
+            features += [1.001]
+        else:
+            features += [np.reciprocal(float(minDistance))] if minDistance else [0] # distance to closest food
         return features
 
     def calculateNewWeight(self, weight, delta, feature):
