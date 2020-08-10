@@ -1,20 +1,65 @@
-import DQNetwork
-
 from captureAgents import CaptureAgent
 import distanceCalculator
-import random, time, util, sys
-from game import Directions
+import random
+import time
+import util
+import sys
 import game
+from game import Directions
 from util import nearestPoint
 import math
+from myTeam import createTeam
+from myTeam import ReflexCaptureAgent
+from myTeam import DefensiveReflexAgent
+from IPython.display import clear_output
+import numpy as np
+import DQNetwork
+
+# calculate reward by the transition of each state
+
+# init w = w_1,w_2,w_3,..w_n randomly in [0,1]
+# for each episonde,
+# 𝑠←initial state of episode
+# 𝑎←action given by policy 𝜋 (recommend: 𝜖-greedy)
+# Take action 𝑎, observe reward 𝑟 and next state 𝑠′
+# 𝑤←𝑤+𝛼(𝑟+𝛾∗𝑚𝑎𝑥𝑎′𝑄(𝑠′,𝑎′)−𝑄(𝑠,𝑎))∇⃗ 𝑤𝑄(𝑠,𝑎)
+# 𝑠←𝑠′
+#
+# class DeepQNetwork(nn.Module):
+#     return
+
+# An experience in SARSA of the form ⟨s,a,r,s',a'⟩ (the agent was in state s, did action a, and received reward r and ended up in state s', in which it decided to do action a')
+# Q(s,a)≈θTϕ(s,a)
+# Q(s,a) Sum(Features(state)*weight(action))
+# each action gets a set of n weights to represent the q values for that action
+# represent state,action with a function, instead of a table.
+# gradient descent to find local min w = -0.5alpha*w*J(w)
+# where J(w) is the loss
+# 𝑄(𝑠,𝑎)=𝑤1𝑓1(𝑠,𝑎)+𝑤2𝑓2(𝑠,𝑎)+⋯,
+# Q*(s,a) = Q*(s,a) + alpha(r+gamma*Q*(s',a) - Q*(s,a))
+# for files
+import pickle
 
 
-#################
-# Team creation #
-#################
+# def readQValues():
+#     """
+#     Will return the Counter of Q(s,a) from qValueFile
+#     """
+#     with open('./qValueFile.pickle', 'rb') as handle:
+#         qVals = pickle.load(handle)
+#     return qVals
+
+def readWeights():
+    """
+    Return the list of weights from LinearApproxFile
+    """
+    with open('./LinearApproxFile.pickle', 'rb') as handle:
+        weights = pickle.load(handle)
+    return weights
+
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first='OffensiveReflexAgent', second='DefensiveReflexAgent'):
+               first='QLearningAgent', second='DefensiveReflexAgent'):
     """
     This function should return a list of two agents that will form the
     team, initialized using firstIndex and secondIndex as their agent
@@ -34,167 +79,153 @@ def createTeam(firstIndex, secondIndex, isRed,
     return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
 
-##########
-# Agents #
-##########
-
-# copied from baselineTeam.py
-class ReflexCaptureAgent(CaptureAgent):
+class QLearningAgent(ReflexCaptureAgent):
     """
-    A base class for reflex agents that chooses score-maximizing actions
+    A reflex agent that seeks food. This is an agent
+    we give you to get an idea of what an offensive agent might look like,
+    but it is by no means the best or only way to build an offensive agent.
     """
 
     def registerInitialState(self, gameState):
         self.start = gameState.getAgentPosition(self.index)
         CaptureAgent.registerInitialState(self, gameState)
+        self.numFoodCarrying = 0
 
-    def chooseAction(self, gameState):
+        # Q Value functions
+        self.epsilon = 0.005  # exploration prob
+        self.alpha = 0.01  # learning rate --> start with a large like 0.1 then exponentially smaller like 0.01, 0.001
+        self.gamma = 0.8  # discount rate to prevent overfitting
+        self.QValues = util.Counter()  # Stores the Q values for updating
+        self.scaredGhostTimers = [0, 0]
+        self.score = 0
+        # for storing the action that we took and the past state
+        # for some reson previousObservationHistory does not work
+        self.previousGameStates = []
+        self.previousActionTaken = []
+        self.weights = list()  # weights will be a list, update after each action
+
+        self.weights = readWeights()
+        # self.weightInitialization()
+
+    def getEnemyDistance(self, gameState):
         """
-        Picks among the actions with the highest Q(s,a).
+        Returns the distance to an enemy GHOST, if it is in sight. Else returns 0
+        """
+        if gameState.getAgentState(self.index).isPacman:
+            enemies = [gameState.getAgentState(i)
+                       for i in self.getOpponents(gameState)]
+            numEnemies = len([a for a in enemies if not a.isPacman])
+            # holds the ghosts that we can see
+            ghosts = [a for a in enemies if not a.isPacman and a.getPosition()
+                      != None]
+            if len(ghosts) < 1:
+                return 0
+            dists = [self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), a.getPosition())
+                     for a in ghosts]
+            return min(dists)
+        return 0
+
+    def weightInitialization(self):
+        """
+        initializes 3 weights randomly from [0,1]. --> 3 Features = 3 weights
+        Only call this ONCE --> for the first time running the training
+        """
+        self.weights = [random.random() for _ in range(3)]
+
+    def distToFood(self, gameState):
+        """
+        Returns the distance to the closest food (capsules and dots) we can eat
+        """
+        foodList = self.getFood(gameState).asList()
+        myPos = gameState.getAgentState(self.index).getPosition()
+        # say that capsules are also food
+        foodList += self.getCapsules(gameState)
+        if len(foodList) > 0:  # This should always be True,  but better safe than sorry
+            return min([self.getMazeDistance(myPos, food) for food in foodList])
+        return 0
+
+    def checkDeath(self, gameState):
+        """
+        checks if pacman dies by seeing if we return back to start.
+        """
+
+        if len(self.previousGameStates) > 0:
+            currentPos = gameState.getAgentState(self.index).getPosition()
+            # if we are at self.start, say we died.
+            if currentPos == self.start:
+                self.numFoodCarrying = 0
+                return 1
+
+        return 0
+
+    def getScoreIncrease(self, gameState):
+        """
+        returns how much we increased the score
+        """
+        if len(self.previousGameStates) > 0:
+            previousState = self.getPreviousObservation()
+            score = self.getScore(gameState)
+            prevScore = self.getScore(previousState)
+            if prevScore != score:
+                if self.red:
+                    # if we get points as red then score increases
+                    increase = score - prevScore
+                    return increase if increase > 0 else 0
+                else:
+                    # if we get points as blue then score decrease
+                    increase = score - prevScore
+                    return increase if increase > 0 else 0
+            return 0
+        return 0
+
+    def getQValue(self, gameState, action):
+        """
+        Returns the Q value of the given state and action.
+        If the state is not in the QValue, will return Q(s,a) = 0
+        """
+        # Qw(s,a) = w0+w1 F1(s,a) + ...+ wn Fn(s,a)
+        Qval = 0
+        features = self.getFeatures(gameState, action)
+        for i in range(len(self.weights)):
+            Qval += self.weights[i] * features[i]
+        return Qval
+
+    def updateQValue(self, last_state, last_action, reward, maxQ):
+        """
+        Updates the value for the gamestate and action in QTable 
+        """
+        self.QValues[(last_state, last_action)] = (reward + self.gamma + maxQ) * \
+                                                  self.alpha + (1 - self.alpha) * self.QValues[
+                                                      (last_state, last_action)]
+
+    def getMaxQ(self, gameState):
+        """
+        return the maximum Q of gameState
+        """
+        q_list = []
+        for a in gameState.getLegalActions(self.index):
+            q = self.getQValue(gameState, a)
+            q_list.append(q)
+        if len(q_list) == 0:
+            return 0
+        return max(q_list)
+
+    def bestAction(self, gameState):
+        """
+        Gets the best action given the current state. Find the action with the highest Q value using weights
         """
         actions = gameState.getLegalActions(self.index)
-        # You can profile your evaluation time by uncommenting these lines
-        # start = time.time()
-        values = [self.evaluate(gameState, a) for a in actions]
-        # print('eval time for agent %d: %.4f' % (self.index, time.time() - start))
-
-        maxValue = max(values)
-        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-
-        foodLeft = len(self.getFood(gameState).asList())
-
-        if foodLeft <= 2:
-            bestDist = 9999
-            for action in actions:
-                successor = self.getSuccessor(gameState, action)
-                pos2 = successor.getAgentPosition(self.index)
-                dist = self.getMazeDistance(self.start, pos2)
-                if dist < bestDist:
-                    bestAction = action
-                    bestDist = dist
-            return bestAction
-
-        return random.choice(bestActions)
-
-    def getSuccessor(self, gameState, action):
-        """
-        Finds the next successor which is a grid position (location tuple).
-        """
-        successor = gameState.generateSuccessor(self.index, action)
-        pos = successor.getAgentState(self.index).getPosition()
-        if pos != nearestPoint(pos):
-            # Only half a grid position was covered
-            return successor.generateSuccessor(self.index, action)
-        else:
-            return successor
-
-    def evaluate(self, gameState, action):
-        """
-        Computes a linear combination of features and feature weights
-        """
-        features = self.getFeatures(gameState, action)
-        weights = self.getWeights(gameState, action)
-        return features * weights
-
-    def getFeatures(self, gameState, action):
-        """
-        Returns a counter of features for the state
-        """
-        features = util.Counter()
-        successor = self.getSuccessor(gameState, action)
-        features['successorScore'] = self.getScore(successor)
-        return features
-
-    def getWeights(self, gameState, action):
-        """
-        Normally, weights do not depend on the gamestate.  They can be either
-        a counter or a dictionary.
-        """
-        return {'successorScore': 1.0}
-
-####################
-# PAC-MAN DQ AGENT #
-####################
-class DQPacmanAgent(ReflexCaptureAgent):
-    """
-      A reflex agent that seeks food. This is an agent
-      we give you to get an idea of what an offensive agent might look like,
-      but it is by no means the best or only way to build an offensive agent.
-      """
-
-    def registerInitialState(self, gameState):
-        self.start = gameState.getAgentPosition(self.index)
-        CaptureAgent.registerInitialState(self, gameState)
-        self.scaredGhostTimers = [0, 0]  # timer for how long enemy ghost will be scared for
-        self.numFoodCarrying = 0  # how much food pacman is carrying rn
-        self.deathCoord = None
-        self.deathScore = 0
-        self.pathChoices = []
-        self.pathTaken = []
-
-    def getFeatures(self, gameState, action):
-        features = util.Counter()
-        successor = self.getSuccessor(gameState, action)
-        foodList = self.getFood(successor).asList()
-        foodList += self.getCapsules(successor)  # say that capsules are also food
-        features['successorScore'] = -len(foodList)  # self.getScore(successor)
-
-        # Computes distance to invaders we can see (within 5 distance)
-        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-        invaders = [a for a in enemies if not a.isPacman and a.getPosition() != None]
-        myPos = successor.getAgentState(self.index).getPosition()
-        if len(invaders) > 0:
-            dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
-            features['distanceToEnemy'] = min(dists) if min(dists) < 10 else 0
-        # Compute distance to the nearest food
-        if len(foodList) > 0:  # This should always be True,  but better safe than sorry
-            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-            features['distanceToFood'] = minDistance
-
-        numWalls = 4 - len(successor.getLegalActions(self.index)) + 1  # N,E,S,W - available actions + STOP and REVERSE
-
-        features['numWalls'] = numWalls
-
-        if self.numFoodCarrying >= 5 or len(foodList) <= 2:
-            pos2 = successor.getAgentPosition(self.index)
-            dist = self.getMazeDistance(self.start, pos2)
-            features['distanceToHome'] = dist
-
-        if action == Directions.STOP: features['stop'] = 1
-        rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
-        if action == rev: features['reverse'] = 1
-
-        # Here we will go to the death coordinate
-
-        # Get the death coordinates
-        self.getDeathCoordinates(gameState)
-
-        # if there are death coordinates
-        if self.deathCoord and self.eatOrRetreat(gameState):
-            # set sail to those coordinates
-            features['distanceToFood'] = self.getMazeDistance(myPos, self.deathCoord)
-        return features
-
-    def getWeights(self, gameState, action):
-        """
-        Gives Weights for PacMan gameState features.
-        Penalize getting away from food and getting closer to enemy
-        Penalize getting trapped between walls
-        """
-        if len(self.getFood(gameState).asList()) <= 2:
-            # Return home and try to avoid ghosts
-            return {'successorScore': 100, 'distanceToFood': -1, 'distanceToEnemy': 1.5, 'stop': -300, 'reverse': 0.1,
-                    'numWalls': -0.5, 'distanceToHome': -1.5}
-        if self.numFoodCarrying >= 5:
-            # Do not care about getting more food.
-            return {'successorScore': 100, 'distanceToFood': 0, 'distanceToEnemy': 1.5, 'stop': -300, 'reverse': 0.1,
-                    'numWalls': -0.5, 'distanceToHome': -1}
-        # TODO: figure out individual ghost scared weights
-        if self.isScared(gameState, 0) and self.isScared(gameState, 1):
-            return {'successorScore': 100, 'distanceToFood': -1, 'distanceToEnemy': -0.5, 'stop': -300, 'reverse': 0.1,
-                    'numWalls': -0.5}
-        return {'successorScore': 100, 'distanceToFood': -1, 'distanceToEnemy': 1.5, 'stop': -300, 'reverse': 0.1,
-                'numWalls': -0.5}
+        if Directions.STOP in actions:
+            # don't want to stop
+            actions.remove(Directions.STOP)
+        bestAction = actions[0]
+        highestQVal = 0
+        for action in actions:
+            temp = self.getQValue(gameState, action)
+            if temp > highestQVal:
+                bestAction = action
+                highestQVal = temp
+        return bestAction
 
     def isCapsuleEaten(self, gameState):
         """
@@ -205,16 +236,16 @@ class DQPacmanAgent(ReflexCaptureAgent):
         previousState = self.getPreviousObservation()  # get the previous observation
         if previousState:
             previousCapsules = self.getCapsules(previousState)
-            if len(capsule) != len(previousCapsules):
-                self.scaredGhostTimers = [40, 40]  # both ghost's scared timers to 40 moves
-                print("our pacman ate capsule")
-                return True
+        if len(capsule) != len(previousCapsules):
+            self.scaredGhostTimers = [40, 40]  # both ghost's scared timers to 40 moves
+            print("our pacman ate capsule")
+            return True
         else:
             return False
 
     def isGhostEaten(self, gameState, ghostIndex):
         """
-        Checks if the ghost in arg ghostIndex was eaten yet during the scared state.
+        Checks if the ghost in arg ghostIndex was eaten yet during the scared state. 
         There is no need to check if a ghost was eaten if it already has a value of 0 in
         its scaredGhostTimer index.
         """
@@ -223,167 +254,165 @@ class DQPacmanAgent(ReflexCaptureAgent):
             previousObservation = self.getPreviousObservation()  # get the previous observation
             if previousObservation:
                 previousGhostPosition = previousObservation.getAgentPosition(ghost)
-                if previousGhostPosition:
-                    currentGhostPosition = gameState.getAgentPosition(ghost)
-                    # If we cannot find the ghost anymore, or if the ghost moved more than 1 position then the ghost
-                    # has been eaten.
-                    if not currentGhostPosition or self.getMazeDistance(previousGhostPosition,
-                                                                        currentGhostPosition) > 1:
-                        self.scaredGhostTimers[ghostIndex] = 0  # ghost is no longer scared after being eaten
-                        return True
+            if previousGhostPosition:
+                currentGhostPosition = gameState.getAgentPosition(ghost)
+                # If we cannot find the ghost anymore, or if the ghost moved more than 1 position then the ghost
+                # has been eaten.
+                if not currentGhostPosition or self.getMazeDistance(previousGhostPosition, currentGhostPosition) > 1:
+                    self.scaredGhostTimers[ghostIndex] = 0  # ghost is no longer scared after being eaten
+                return True
         return False
 
-    def chooseAction(self, gameState):
+    def getReward(self, gameState):
         """
-        Picks among the actions with the highest Q(s,a).
+        Gets the reward of the current gameState
+        Score = rewards - punishment
         """
-        actions = gameState.getLegalActions(self.index)
-        self.isCapsuleEaten(gameState)
-        actionChosen = None
-        # You can profile your evaluation time by uncommenting these lines
-        # start = time.time()
-        values = [self.evaluate(gameState, a) for a in actions]
-        # print('eval time for agent %d: %.4f' % (self.index, time.time() - start))
+        score = 0
+        # rewards
+        # add if we eat the ghost
+        score += 1.25 if self.ateFood(gameState) else 0
+        score += self.getScoreIncrease(gameState)
+        # punishment
+        score -= 1 if self.checkDeath(gameState) else 0
 
-        maxValue = max(values)
-        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-
-        # for a in range(len(bestActions)):
-        # print(str(a))
-        # decrement scaredTimers if needed.
-        for i in range(len(self.scaredGhostTimers)):
-            self.scaredGhostTimers[i] -= 1 if self.scaredGhostTimers[i] > 0 else 0
-
-        foodLeft = len(self.getFood(gameState).asList())
-        if self.ateFood(gameState):
-            self.numFoodCarrying += 1
-        if not gameState.getAgentState(self.index).isPacman:
-            # if we are a ghost, then that means we are back on our side
-            self.numFoodCarrying = 0
-
-        # I haven't tested to see if PacMan performs well with his 'return home' weights when there are only 2 food left.
-        # (don't delete)
-        # if foodLeft <= 2:
-        #   bestDist = 9999
-        #   for action in actions:
-        #     successor = self.getSuccessor(gameState, action)
-        #     pos2 = successor.getAgentPosition(self.index)
-        #     dist = self.getMazeDistance(self.start,pos2)
-        #     if dist < bestDist:
-        #       bestAction = action
-        #       bestDist = dist
-        #   return bestAction
-        if gameState.getAgentPosition(self.index):
-            self.deathCoord = None
-            self.start
-
-        if len(self.pathTaken) > 0:
-            # call choice function
-            # print("Here len(self.pathTaken) > 0")
-            actionChosen = self.bestPath(gameState, bestActions)
-        else:
-            # else choose a random action
-            # print("Here choose first Action")
-            actionChosen = bestActions[0]
-            # actionChosen = random.choice(bestActions)
-
-        # self.pathTaken.append(actionChosen)
-        self.pathTaken.append(bestActions)
-
-        # print(actionChosen)
-        return actionChosen
-
-    """
-    paths is the best actions array
-    we need to choose the best one based on cost
-    """
-
-    def bestPath(self, gameState, paths):
-
-        # print("Here  bestPath(self,gameState, paths)")
-        # print(len(paths))
-
-        bestChoices = [paths[0]]
-
-        for p in paths:
-            if p not in self.pathTaken:
-                # print("pruned")
-                bestChoices.append(p)
-
-        bestChoices.sort()
-        # print("returned Val: ", bestChoices[0])
-        return bestChoices[0]
-
-    def isScared(self, gameState, ghostIndex):
-        """
-        Checks if a ghost, given the arg ghostIndex is in a scared state.
-        A ghost is in a scared state if it's timer is greater than 0
-        """
-        return self.scaredGhostTimers[ghostIndex] > 0
+        foodList = self.getFood(gameState).asList()
+        if len(foodList):
+            minDistance = min([self.getMazeDistance(gameState.getAgentState(
+                self.index).getPosition(), food) for food in foodList])
+            score += np.reciprocal(float(minDistance))  # distance to closest food
+        # if the game is over big reward if we win, else penalty if we lose
+        if gameState.isOver():
+            score += self.getScore(gameState) * 2
+        return score
 
     def ateFood(self, gameState):
         """
-        Returns true if PacMan ate food in the last turn
+        Returns true if PacMan eats food in the turn
         """
-        previousObservation = self.getPreviousObservation()  # get the previous observation
-        if previousObservation:
-            previousFood = len(
-                self.getFood(previousObservation).asList())  # get previous turn number of food on enemy side
+        if len(self.previousGameStates) > 1:
+            previousObservation = self.getPreviousObservation()  # get the previous observation
+            # get previous turn number of food on enemy side
+            previousFood = len(self.getFood(previousObservation).asList())
+            previousFood += len(self.getCapsules(previousObservation))
             foodLeft = len(self.getFood(gameState).asList())
+            foodLeft += len(self.getCapsules(gameState))
             return previousFood != foodLeft
         return False
 
-    def getDeathCoordinates(self, gameState):
+    def getFeatures(self, gameState, action):
         """
-        This functions finds the location where pacman dies. These coordinates are needed
-        for pacman to go back and attempt to get the food back.
-        The default for death coordinates is null
+        features of the state
         """
-        previousState = self.getPreviousObservation()
+        successor = gameState.generateSuccessor(self.index, action)
+        features = [1]  # feature 0 is always 1
 
-        if previousState:
-            if self.getMazeDistance(gameState.getAgentState(self.index).getPosition(),
-                                    previousState.getAgentState(self.index).getPosition()) > 1:
-                self.deathCoord = self.start
-                # self.deathScore = self.getScore
-            # get the previous position
-            previousGameState = self.getPreviousObservation()
+        features += [self.getEnemyDistance(successor) * 0.1]  # distance to a visible enemy
+        # features += [self.getMazeDistance(
+        #     self.start, successor.getAgentState(self.index).getPosition())*0.3] # distance from start
+        minDistance = min([self.getMazeDistance(successor.getAgentState(
+            self.index).getPosition(), food) for food in self.getFood(successor).asList()])
+        # choose action that decreases distance
+        # features += [np.reciprocal(float(minDistance))] # distance to closest food
 
-            if previousGameState:
-                # then check if we are currently at self.start
-                currentPos = gameState.getAgentState(self.index).getPosition()
-                # if we are at self.start:
-                if currentPos == self.start:
-                    self.deathCoord = previousGameState.getAgentPosition(self.index)
+        if self.ateFood(successor):
+            # Because when we eat the closest food, the distance is 0 --> eating is bad
+            # we will make it so that we give it some nonzero weight
+            features += [1.001]
+        else:
+            features += [np.reciprocal(float(minDistance))] if minDistance else [0]
 
-    """
-    This fuction checks if it is worth it to retreave what has been lost or to 
-    just play as normal
-    """
+        return features
 
-    def eatOrRetreat(self, gameState):
-        # get the amout of food that was lost
+    def calculateNewWeight(self, weight, delta, feature):
+        """
+        Helper function to calculate new weights using rule
+        wi←wi+ηδFi(s,a).
+        Pass in w_i, δ=r+γQ(s',a')-Q(s,a), and F_i
+        """
+        weight = weight + self.alpha * delta * feature
+        # print("new weight", weight)
+        return weight
 
-        # failsafe default of 5
-        foodLost = 5
+    def updateWeights(self, last_state, last_action, reward, max_q):
+        """
+        Updates weights using rule
+        wi←wi+ηδFi(s,a).
+        """
+        if (len(self.previousGameStates) > 0):
+            delta = reward + self.gamma * max_q - self.getQValue(last_state, last_action)  # δ=r+γQ(s',a')-Q(s,a)
+            for i in range(0, len(self.weights)):
+                self.weights[i] = self.calculateNewWeight(
+                    self.weights[i], delta, self.getFeatures(last_state, last_action)[i])
 
-        if self.observationHistory[-1]:
-            # get the previos status of the game
-            prevPrevFood = len(self.getFood(self.observationHistory[0]).asList())
-            prevFood = len(self.getFood(self.observationHistory[-1]).asList())
+    def chooseAction(self, gameState):
+        """
+        Decides on the best action given the current state and looks at the Q table
+        """
+        actions = gameState.getLegalActions(self.index)
+        if Directions.STOP in actions:
+            # don't want to stop
+            actions.remove(Directions.STOP)
 
-            # if playing as red, calculate how much food we had available in the prev game on the blue side
-            # else, do the same but on the red side
-            if self.red:
-                AgentStateScore = len(self.getPreviousObservation().getBlueFood().asList())
-            else:
-                AgentStateScore = len(self.getPreviousObservation().getRedFood().asList())
+        # reward of gameState to new gamestate
+        # reward = self.Score(gameState)-self.score
+        reward = self.getReward(gameState)
+        # print('reward', reward)
 
-            # food lost is the food in current - last round
-            foodLost = abs(AgentStateScore - prevFood)
+        # e-greedy 
+        # if util.flipCoin(self.epsilon):
+        #     action = random.choice(actions)
+        # else:
+        action = self.bestAction(gameState)
 
-        # if the amount of food >= 5 return true
-        if foodLost >= 5:
-            return True
+        if len(self.previousGameStates) > 0:
+            last_state = self.previousGameStates[-1]
+            last_action = self.previousActionTaken[-1]
+            max_q = self.getMaxQ(gameState)
+            # self.updateQValue(last_state, last_action, reward, max_q)
+            self.updateWeights(last_state, last_action, reward, max_q)
+            # self.features.append({'features':self.getFeatures(gameState,action),'value':max_q})
 
-        return False
+        # update the score for the current state
+        # self.score = self.Score(gameState)
+        self.previousGameStates.append(gameState)
+        self.previousActionTaken.append(action)
+
+        # Check if we ate food --> then increase the food we are carrying
+        successor = gameState.generateSuccessor(self.index, action)
+        if self.ateFood(successor) == True:
+            self.numFoodCarrying += 1
+
+        return action
+
+    def final(self, gameState):
+        """
+        Finally, we will update our weight one last time and we will push our updated weights back into file.
+        """
+        reward = self.getReward(gameState)
+        last_state = self.previousGameStates[-1]
+        last_action = self.previousActionTaken[-1]
+        max_q = self.getMaxQ(gameState)
+        self.updateWeights(last_state, last_action, reward, max_q)
+
+        print("game over. Weights:")
+        print(self.weights)
+        # put weights into file
+        with open('./LinearApproxFile.pickle', 'wb') as handle:
+            pickle.dump(self.weights, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # put the Q values back into file
+        # with open('./qValueFile.pickle', 'wb') as handle:
+        #     pickle.dump(self.QValues, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # Feature check
+        # with open('./Features.pickle', 'wb') as handle:
+        #     pickle.dump(self.features, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+# weights
+# 6:06 pm [1.5424054141031014, 0.055600616921998164, 5.563450010626308]
+# [2.316680230669802, 1.6638907160685494, 5.635170662376932]
+# [2.098754896275266, 1.4586679144636339, 5.145779499944092]
+# [2.0963943742225535, 1.2076193305869922, 5.667179874740193]
+# [1.5424054141031014, 0.055600616921998164, 5.563450010626308]
+# [2.098754896275266, 1.4586679144636339, 5.145779499944092]
+# old --> does not work as well [2.450014261728269, 0.09639381124804589, 8.38406654878239]
