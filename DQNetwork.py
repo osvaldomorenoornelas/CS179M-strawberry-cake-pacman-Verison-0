@@ -112,7 +112,6 @@ class DQNetwork(object):
         #SDG: Implements stochastic gradient descent
         optimizer = SGD(model.parameters(), lr = 0.01)
 
-
         #train 50 iterations
         for epoch in range(50):
             #give minibatches umertaions

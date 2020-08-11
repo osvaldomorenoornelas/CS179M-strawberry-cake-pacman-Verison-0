@@ -13,7 +13,8 @@ from myTeam import ReflexCaptureAgent
 from myTeam import DefensiveReflexAgent
 from IPython.display import clear_output
 import numpy as np
-import DQNetwork
+from DQNetwork import MLP
+from DQNetwork import DQNetwork
 
 # calculate reward by the transition of each state
 
@@ -106,6 +107,18 @@ class QLearningAgent(ReflexCaptureAgent):
 
         self.weights = readWeights()
         # self.weightInitialization()
+
+        #initailize input data
+        self.n_actions = 0
+        self.input_dims = 0
+        self.out_dims = 0
+        self.batch_size = 0
+        self.hidden_dimension = 0
+
+        # declare Q-Value Network
+
+        self.network = DQNetwork(self.gamma, self.epsilon,self.n_actions, self.input_dims,
+                                 self.out_dims, self.batch_size, self.hidden_dimension)
 
     def getEnemyDistance(self, gameState):
         """
@@ -209,6 +222,42 @@ class QLearningAgent(ReflexCaptureAgent):
         if len(q_list) == 0:
             return 0
         return max(q_list)
+
+    def getNetworkPrediction(self):
+
+        #load the data
+        data = self.network.loadData()
+        #data = self.weightInitialization()
+
+        #define the model
+        model = MLP(10)
+
+        #train the model
+        self.network.TrainModel(data, model)
+
+        #evaluate the model using function:
+        #   def evaluate(self, testData, model):
+        accuracy = self.network.evaluate(data, model)
+
+        #make a prediction
+        prediction = self.network.predict(self.weights, model)
+
+        return prediction.round()
+
+    def bestActionNN(self, gameState):
+        actions = gameState.getLegalActions(self.index)
+        if Directions.STOP in actions:
+            # don't want to stop
+            actions.remove(Directions.STOP)
+        bestAction = actions[0]
+        highestQVal = 0
+        for action in actions:
+            temp = self.getNetworkPrediction()
+            if temp > highestQVal:
+                bestAction = action
+                highestQVal = temp
+        return bestAction
+
 
     def bestAction(self, gameState):
         """
@@ -363,7 +412,8 @@ class QLearningAgent(ReflexCaptureAgent):
         # if util.flipCoin(self.epsilon):
         #     action = random.choice(actions)
         # else:
-        action = self.bestAction(gameState)
+        action = self.bestActionNN(gameState)
+        #action = self.bestAction(gameState)
 
         if len(self.previousGameStates) > 0:
             last_state = self.previousGameStates[-1]
