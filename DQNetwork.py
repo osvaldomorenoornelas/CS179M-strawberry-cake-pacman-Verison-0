@@ -28,7 +28,7 @@ class MLP(Module):
         super(MLP, self).__init__()
 
         #take the linear approximation of the layer
-        self.layer = Linear(inputNumber, 1)
+        self.layer = Linear(inputNumber, 2)
 
         #sigmaoid of the layer data array
         #example https://pytorch.org/docs/stable/generated/torch.sigmoid.html
@@ -38,11 +38,11 @@ class MLP(Module):
     def forward(self, prop):
 
         #insert into the layer and activate
-        layer = self.layer(prop)
-        layer = self.activation(layer) #could also be prop
+        prop = self.layer(prop)
+        prop = self.activation(prop) #could also be prop
 
         #return the layer
-        return layer
+        return prop
 
 """
 DQ Network has its necessary functions for learning. 
