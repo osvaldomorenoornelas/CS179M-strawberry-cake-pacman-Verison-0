@@ -109,11 +109,11 @@ class QLearningAgent(ReflexCaptureAgent):
         # self.weightInitialization()
 
         #initailize input data
-        self.n_actions = 0
-        self.input_dims = 0
-        self.out_dims = 0
+        self.n_actions = 2
+        self.input_dims = 2
+        self.out_dims = 1
         self.batch_size = 0
-        self.hidden_dimension = 0
+        self.hidden_dimension = 1
 
         # declare Q-Value Network
 
@@ -230,7 +230,7 @@ class QLearningAgent(ReflexCaptureAgent):
         #data = self.weightInitialization()
 
         #define the model
-        model = MLP(10)
+        model = MLP(1)
 
         #train the model
         self.network.TrainModel(data, model)
