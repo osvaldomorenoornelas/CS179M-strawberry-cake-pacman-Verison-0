@@ -266,7 +266,7 @@ class DQPacmanAgent(ReflexCaptureAgent):
         Checks if a ghost, given the arg ghostIndex is in a scared state.
         A ghost is in a scared state if it's timer is greater than 0
         """
-        return self.scaredGhostTimers[ghostIndex] > 0
+        return gameState.data.agentStates[ghostIndex].scaredTimer
 
     def checkDeath(self, gameState):
         """
@@ -537,7 +537,7 @@ class DQPacmanAgent(ReflexCaptureAgent):
 
         # predict = self.predict(self.Features[-1], self.model)
         # print(predict)
-       
+       self.TrainModel()
 
         return bestAction        
 
