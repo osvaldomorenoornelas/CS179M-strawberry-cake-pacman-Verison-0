@@ -15,6 +15,7 @@ from IPython.display import clear_output
 import numpy as np
 from DQNetwork import MLP
 from DQNetwork import DQNetwork
+import torch as T
 
 # calculate reward by the transition of each state
 
@@ -40,6 +41,7 @@ from DQNetwork import DQNetwork
 # Q*(s,a) = Q*(s,a) + alpha(r+gamma*Q*(s',a) - Q*(s,a))
 # for files
 import pickle
+import os
 
 
 # def readQValues():
@@ -108,17 +110,36 @@ class QLearningAgent(ReflexCaptureAgent):
         self.weights = readWeights()
         # self.weightInitialization()
 
+
+
         #initailize input data
         self.n_actions = 2
         self.input_dims = 2
         self.out_dims = 2
         self.batch_size = 2
-        self.hidden_dimension = 0
+        self.hidden_dimension = 1
+
 
         # declare Q-Value Network
 
         self.network = DQNetwork(self.gamma, self.epsilon,self.n_actions, self.input_dims,
                                  self.out_dims, self.batch_size, self.hidden_dimension)
+
+
+        #if pickle file has data
+        with open("./model.pickle", 'rb') as handle:
+            #weights = pickle.load(handle)
+            if os.path.getsize("./model.pickle") > 0:
+                self.network.setModel(T.load("./model.pickle"))
+            #else by default it will create a default model to be created and trained
+            else:
+                # load the data
+                trainData, testData = self.network.loadData()
+                #train the model
+                self.network.Train(trainData, testData)
+                print("Training succesful")
+
+
 
     def getEnemyDistance(self, gameState):
         """
@@ -223,24 +244,12 @@ class QLearningAgent(ReflexCaptureAgent):
             return 0
         return max(q_list)
 
-    def getNetworkPrediction(self):
+    def getNetworkPrediction(self, features):
 
-        #load the data
-        data = self.network.loadData()
-        #data = self.weightInitialization()
-
-        #define the model
-        model = MLP(2)
-
-        #train the model
-        self.network.TrainModel(data, model)
-
-        #evaluate the model using function:
-        #   def evaluate(self, testData, model):
-        accuracy = self.network.evaluate(data, model)
 
         #make a prediction
-        prediction = self.network.predict(self.weights, model)
+        #pass in a set of features to be ran thru the model
+        prediction = self.network.predict(features)
 
         return prediction.round()
 
@@ -252,7 +261,8 @@ class QLearningAgent(ReflexCaptureAgent):
         bestAction = actions[0]
         highestQVal = 0
         for action in actions:
-            temp = self.getNetworkPrediction()
+            print("action: ", action)
+            temp = self.getNetworkPrediction(action.getFeatures())#take in what the state action combination is
             if temp > highestQVal:
                 bestAction = action
                 highestQVal = temp
@@ -457,6 +467,10 @@ class QLearningAgent(ReflexCaptureAgent):
         # Feature check
         # with open('./Features.pickle', 'wb') as handle:
         #     pickle.dump(self.features, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        #save the model for the next game
+        #torch.save(model.state_dict(), PATH)
+        T.save(self.network.Model(), "./model.pickle")
 
 # weights
 # 6:06 pm [1.5424054141031014, 0.055600616921998164, 5.563450010626308]
