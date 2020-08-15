@@ -99,13 +99,20 @@ class DQNetwork(object):
     """
     Load the data into x and y 
     (data sets as shown by professor shelton on office hours)
+    
+    N, D_in, H, D_out = 64, 1000, 100, 10
+
+    # Create random Tensors to hold inputs and outputs
+    x = torch.randn(N, D_in)
+    y = torch.randn(N, D_out)  
     """
     def loadData(self):
         #create tensors from the data file
         #for the moment, we will create temporaries from random
         x =  T.randn(self.actions, self.inputs) #situations
         y =  T.randn(self.actions, self.outputs) #results
-        return x,y
+
+        return x, y
 
     """
     return the current model being used
@@ -118,18 +125,19 @@ class DQNetwork(object):
     MSELoss measures the mean squared error
     """
     def LossFunction(self):
-        loss_fn = T.nn.MSELoss()
+        loss_fn = T.nn.MSELoss(reduction='sum')
         return loss_fn
 
     """
     Train model using a diff method
     using tutorial code from: https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
     """
-    def Train(self, x,y):
+    def Train(self, x, y):
 
         learning_rate = 1e-4
 
         for t in range(500):
+            print("pass: ", t)
             # Forward pass: compute predicted y by passing x to the model. Module objects
             # override the __call__ operator so you can call them like functions. When
             # doing so you pass a Tensor of input data to the Module and it produces
@@ -236,12 +244,12 @@ class DQNetwork(object):
     Predicts for a row of data. May have to be more specific because
     of how pacman is structured
     """
-    def predict(self, rowData, model):
+    def predict(self, rowData):
         #convert row to data
         rowData = Tensor([rowData])
 
         #create a prediction
-        modelData = model(rowData)
+        modelData = self.model(rowData)
 
         #get the numpy Data
         modelData = modelData.detach().numpy()
