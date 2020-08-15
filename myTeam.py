@@ -22,6 +22,7 @@ from game import Directions
 import game
 from util import nearestPoint
 import math
+import numpy as np
 #################
 # Team creation #
 #################
@@ -166,7 +167,7 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         self.invaderDistance = []  # list of the most recent and exact coordinates of invaders
         self.middleOfBoard = tuple(map(lambda i, j: math.floor(
             (i+j)/2), gameState.data.layout.agentPositions[0][1], gameState.data.layout.agentPositions[1][1]))
-        print(self.middleOfBoard)
+        # print(self.middleOfBoard)
         # used if there is an enemy on the map whose exact position we do not know, but has eaten food recently.
         self.target = 0
 
@@ -316,7 +317,7 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         # check if a capsule on our side was eaten
         boardCapsules = len(self.getCapsulesYouAreDefending(gameState))
         if (self.numCapsules > boardCapsules):
-            print("enemy pacman ate capsule")
+            # print("enemy pacman ate capsule")
             self.numCapsules -= 1
             return True
         return False
@@ -327,12 +328,6 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         """
         return gameState.data.agentStates[self.index].scaredTimer > 0
 
-    def final(self, gameState):
-         with open('./trainingInput.pickle', 'wb') as handle:
-            pickle.dump(self.gameFeatures, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-         with open('./trainingOutput.pickle', 'wb') as handle:
-            pickle.dump(self.gameOutputs, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 
@@ -359,7 +354,10 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         self.middleOfBoard = tuple(map(lambda i, j: math.floor(
                     (i+j)/2), gameState.data.layout.agentPositions[0][1], gameState.data.layout.agentPositions[1][1]))
         # for training data
-        self.gameFeatures = []
+
+        # self.gameFeatures = []
+        # self.gameOutputs = []
+        self.gameFeatures = readTrainingInputs()
         self.gameOutputs = []
 
     def getEnemyDistance(self, gameState):
@@ -376,7 +374,57 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                         for a in ghosts]
                 return min(dists)
             return 0
+    def getScoreIncrease(self,gameState):
+        """
+        returns how much we increased the score
+        """
+        if len(self.observationHistory) > 1:
+            previousState = self.getPreviousObservation()
+            score = self.getScore(gameState)
+            prevScore = self.getScore(previousState)
+            if prevScore != score:
+                if self.red:
+                    # if we get points as red then score increases
+                    increase = score-prevScore
+                    return increase if increase > 0 else 0
+                else:
+                    # if we get points as blue then score decrease
+                    increase = score-prevScore
+                    return increase if increase > 0 else 0
+            return 0
+        return 0
 
+    def checkDeath(self,gameState):
+        """
+        checks if pacman dies by seeing if we return back to start.
+        """
+
+        if len(self.observationHistory) > 0:
+            currentPos = gameState.getAgentState(self.index).getPosition()
+            # if we are at self.start:
+            if currentPos == self.start:
+                return 1
+        return 0
+
+    def getReward(self,gameState):
+        """
+        Gets the reward of the current gameState
+        Score = rewards - punishment
+        """
+        score = 0
+        # rewards
+        # add if we eat the ghost
+        score += 1.5 if self.ateFood(gameState) else 0
+        score += self.getScoreIncrease(gameState)
+        # punishment
+        score -= 0.5 if self.checkDeath(gameState) else 0
+        minDistance = min([self.getMazeDistance(gameState.getAgentState(
+            self.index).getPosition(), food) for food in self.getFood(gameState).asList()])
+        score += np.reciprocal(float(minDistance)) # distance to closest food
+        # if the game is over big reward if we win, else penalty if we lose
+        if gameState.isOver():
+            score += self.getScore(gameState)*2
+        return score
 
     def getFeatures(self, gameState, action):
         features = util.Counter()
@@ -460,7 +508,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             if len(capsule) != len(previousCapsules):
                 # both ghost's scared timers to 40 moves
                 self.scaredGhostTimers = [40, 40]
-                print("our pacman ate capsule")
+                # print("our pacman ate capsule")
                 return True
         else:
             return False
@@ -502,10 +550,13 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         if not gameState.getAgentState(self.index).isPacman:return 0
         myState = gameState.getAgentState(self.index)
         myPos = myState.getPosition()
-        ourSide = (self.middleOfBoard[0] - 1,self.middleOfBoard[1]) if self.red else (self.middleOfBoard[0] + 1,self.middleOfBoard[1])
+        ourSide = self.middleOfBoard
+        # to make sure that we are at our side
+        #  in case there is a wall
+        while gameState.hasWall(ourSide[0], ourSide[1]):
+            ourSide = (ourSide[0] - 1,ourSide[1]) if self.red else (ourSide[0] + 1,ourSide[1])
         return self.getMazeDistance(myPos, ourSide)
-
-
+    
     def chooseAction(self, gameState):
         """
         Picks among the actions with the highest Q(s,a).
@@ -557,15 +608,22 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         stateFeatures.append(self.getEnemyDistance(gameState))
         stateFeatures.append(self.distToFood(gameState))
         stateFeatures.append(self.distOurSide(gameState))
-
-        # print(actionChosen)
+        # print(stateFeatures)
+        # if len(self.gameOutputs):
+        # # for training data outputs, sum reward and when game is finished add the game score
+        #     stateOutput = [self.getReward(gameState)+self.gameOutputs[-1][0]]
+        # else:
+        #     stateOutput = [self.getReward(gameState)]
+        stateOutput = [0]
+        # print(stateOutput)
+        self.gameFeatures.append(stateFeatures)
+        self.gameOutputs.append(stateOutput)
         return actionChosen
 
     """
-  paths is the best actions array
-  we need to choose the best one based on cost
-  """
-
+    paths is the best actions array
+    we need to choose the best one based on cost
+    """
     def bestPath(self, gameState, paths):
 
         #print("Here  bestPath(self,gameState, paths)")
@@ -658,3 +716,14 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             return True
 
         return False
+
+    def final(self,gameState):
+        self.gameOutputs = [[i + self.getScore(gameState) for i in l] for l in self.gameOutputs]
+        totalOutputs =  readTrainingOutputs()+self.gameOutputs
+
+        # print(self.gameFeatures)
+        # print(totalOutputs)
+        with open('./trainingInput.pickle', 'wb') as handle:
+            pickle.dump(self.gameFeatures, handle, protocol=pickle.HIGHEST_PROTOCOL)        
+        with open('./trainingOutput.pickle', 'wb') as handle:
+            pickle.dump(totalOutputs, handle, protocol=pickle.HIGHEST_PROTOCOL)        
