@@ -44,6 +44,23 @@ import pickle
 import os
 
 
+def readTrainingInputs():
+    """
+    Will return the Counter of Q(s,a) from qValueFile
+    """
+    with open('./trainingInput.pickle', 'rb') as handle:
+        trainingInputs = pickle.load(handle)
+    return trainingInputs
+
+
+def readTrainingOutputs():
+    """
+    Return the list of weights from LinearApproxFile
+    """
+    with open('./trainingOutput.pickle', 'rb') as handle:
+        trainingOutputs = pickle.load(handle)
+    return trainingOutputs
+
 # def readQValues():
 #     """
 #     Will return the Counter of Q(s,a) from qValueFile
@@ -51,6 +68,7 @@ import os
 #     with open('./qValueFile.pickle', 'rb') as handle:
 #         qVals = pickle.load(handle)
 #     return qVals
+
 
 def readWeights():
     """
@@ -62,7 +80,7 @@ def readWeights():
 
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first='QLearningAgent', second='DefensiveReflexAgent'):
+               first='DQAgent', second='DefensiveReflexAgent'):
     """
     This function should return a list of two agents that will form the
     team, initialized using firstIndex and secondIndex as their agent
@@ -82,7 +100,7 @@ def createTeam(firstIndex, secondIndex, isRed,
     return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
 
-class QLearningAgent(ReflexCaptureAgent):
+class DQAgent(ReflexCaptureAgent):
     """
     A reflex agent that seeks food. This is an agent
     we give you to get an idea of what an offensive agent might look like,
@@ -96,7 +114,8 @@ class QLearningAgent(ReflexCaptureAgent):
 
         # Q Value functions
         self.epsilon = 0.005  # exploration prob
-        self.alpha = 0.01  # learning rate --> start with a large like 0.1 then exponentially smaller like 0.01, 0.001
+        # learning rate --> start with a large like 0.1 then exponentially smaller like 0.01, 0.001
+        self.alpha = 0.01
         self.gamma = 0.8  # discount rate to prevent overfitting
         self.QValues = util.Counter()  # Stores the Q values for updating
         self.scaredGhostTimers = [0, 0]
@@ -110,24 +129,20 @@ class QLearningAgent(ReflexCaptureAgent):
         self.weights = readWeights()
         # self.weightInitialization()
 
-
-
-        #initailize input data
+        # initailize input data
         #N, D_in, H, D_out = 64, 1000, 100, 10
-        self.n_actions = 64
-        self.input_dims = 3
-        self.out_dims = 10
-        self.batch_size = 3
-        self.hidden_dimension = 100
-
+        self.n_actions = 5
+        self.input_dims = 3 #3 features
+        self.out_dims = 1 #1 output
+        self.batch_size = 0
+        self.hidden_dimension = 1
 
         # declare Q-Value Network
 
-        self.network = DQNetwork(self.gamma, self.epsilon,self.n_actions, self.input_dims,
+        self.network = DQNetwork(self.gamma, self.epsilon, self.n_actions, self.input_dims,
                                  self.out_dims, self.batch_size, self.hidden_dimension)
 
-
-        #if pickle file has data
+        # if pickle file has data
         """
         with open("./model.pickle", 'rb') as handle:
             #weights = pickle.load(handle)
@@ -142,13 +157,20 @@ class QLearningAgent(ReflexCaptureAgent):
                 print("Training succesful")
         """
         # load the data
-        trainData, testData = self.network.loadData()
+        print('get data')
+        self.trainData, self.testData = self.network.loadData()
+        print('Input size', self.sizeOfInput())
+        print('Output size', self.sizeOfOutput())
         # train the model
-        self.network.Train(trainData, testData)
+        print('train data')
+        self.network.Train(self.trainData, self.testData)
         print("Training succesful")
 
+    def sizeOfInput(self):
+        return len(self.trainData)
 
-
+    def sizeOfOutput(self):
+        return len(self.testData)
 
     def getEnemyDistance(self, gameState):
         """
@@ -238,8 +260,8 @@ class QLearningAgent(ReflexCaptureAgent):
         Updates the value for the gamestate and action in QTable 
         """
         self.QValues[(last_state, last_action)] = (reward + self.gamma + maxQ) * \
-                                                  self.alpha + (1 - self.alpha) * self.QValues[
-                                                      (last_state, last_action)]
+            self.alpha + (1 - self.alpha) * self.QValues[
+            (last_state, last_action)]
 
     def getMaxQ(self, gameState):
         """
@@ -255,9 +277,8 @@ class QLearningAgent(ReflexCaptureAgent):
 
     def getNetworkPrediction(self, features):
 
-
-        #make a prediction
-        #pass in a set of features to be ran thru the model
+        # make a prediction
+        # pass in a set of features to be ran thru the model
         prediction = self.network.predict(features)
 
         return prediction.round()
@@ -280,7 +301,6 @@ class QLearningAgent(ReflexCaptureAgent):
                 bestAction = action
                 highestQVal = temp
         return bestAction
-
 
     def bestAction(self, gameState):
         """
@@ -309,7 +329,8 @@ class QLearningAgent(ReflexCaptureAgent):
         if previousState:
             previousCapsules = self.getCapsules(previousState)
         if len(capsule) != len(previousCapsules):
-            self.scaredGhostTimers = [40, 40]  # both ghost's scared timers to 40 moves
+            # both ghost's scared timers to 40 moves
+            self.scaredGhostTimers = [40, 40]
             print("our pacman ate capsule")
             return True
         else:
@@ -322,16 +343,19 @@ class QLearningAgent(ReflexCaptureAgent):
         its scaredGhostTimer index.
         """
         if self.isScared(gameState, ghostIndex):
-            ghost = self.getOpponents(gameState)[ghostIndex]  # get the ghost at the arg ghostIndex
+            # get the ghost at the arg ghostIndex
+            ghost = self.getOpponents(gameState)[ghostIndex]
             previousObservation = self.getPreviousObservation()  # get the previous observation
             if previousObservation:
-                previousGhostPosition = previousObservation.getAgentPosition(ghost)
+                previousGhostPosition = previousObservation.getAgentPosition(
+                    ghost)
             if previousGhostPosition:
                 currentGhostPosition = gameState.getAgentPosition(ghost)
                 # If we cannot find the ghost anymore, or if the ghost moved more than 1 position then the ghost
                 # has been eaten.
                 if not currentGhostPosition or self.getMazeDistance(previousGhostPosition, currentGhostPosition) > 1:
-                    self.scaredGhostTimers[ghostIndex] = 0  # ghost is no longer scared after being eaten
+                    # ghost is no longer scared after being eaten
+                    self.scaredGhostTimers[ghostIndex] = 0
                 return True
         return False
 
@@ -352,7 +376,8 @@ class QLearningAgent(ReflexCaptureAgent):
         if len(foodList):
             minDistance = min([self.getMazeDistance(gameState.getAgentState(
                 self.index).getPosition(), food) for food in foodList])
-            score += np.reciprocal(float(minDistance))  # distance to closest food
+            # distance to closest food
+            score += np.reciprocal(float(minDistance))
         # if the game is over big reward if we win, else penalty if we lose
         if gameState.isOver():
             score += self.getScore(gameState) * 2
@@ -379,7 +404,8 @@ class QLearningAgent(ReflexCaptureAgent):
         successor = gameState.generateSuccessor(self.index, action)
         features = [1]  # feature 0 is always 1
 
-        features += [self.getEnemyDistance(successor) * 0.1]  # distance to a visible enemy
+        # distance to a visible enemy
+        features += [self.getEnemyDistance(successor) * 0.1]
         # features += [self.getMazeDistance(
         #     self.start, successor.getAgentState(self.index).getPosition())*0.3] # distance from start
         minDistance = min([self.getMazeDistance(successor.getAgentState(
@@ -392,7 +418,8 @@ class QLearningAgent(ReflexCaptureAgent):
             # we will make it so that we give it some nonzero weight
             features += [1.001]
         else:
-            features += [np.reciprocal(float(minDistance))] if minDistance else [0]
+            features += [np.reciprocal(float(minDistance))
+                         ] if minDistance else [0]
 
         return features
 
@@ -412,7 +439,8 @@ class QLearningAgent(ReflexCaptureAgent):
         wi←wi+ηδFi(s,a).
         """
         if (len(self.previousGameStates) > 0):
-            delta = reward + self.gamma * max_q - self.getQValue(last_state, last_action)  # δ=r+γQ(s',a')-Q(s,a)
+            delta = reward + self.gamma * max_q - \
+                self.getQValue(last_state, last_action)  # δ=r+γQ(s',a')-Q(s,a)
             for i in range(0, len(self.weights)):
                 self.weights[i] = self.calculateNewWeight(
                     self.weights[i], delta, self.getFeatures(last_state, last_action)[i])
@@ -431,7 +459,7 @@ class QLearningAgent(ReflexCaptureAgent):
         reward = self.getReward(gameState)
         # print('reward', reward)
 
-        # e-greedy 
+        # e-greedy
         # if util.flipCoin(self.epsilon):
         #     action = random.choice(actions)
         # else:
@@ -481,7 +509,7 @@ class QLearningAgent(ReflexCaptureAgent):
         # with open('./Features.pickle', 'wb') as handle:
         #     pickle.dump(self.features, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-        #save the model for the next game
+        # save the model for the next game
         #torch.save(model.state_dict(), PATH)
         #T.save(self.network.Model(), "./model.pickle")
 

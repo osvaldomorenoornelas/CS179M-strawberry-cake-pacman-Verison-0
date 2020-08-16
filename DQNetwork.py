@@ -13,7 +13,8 @@ from torch.optim import SGD
 from sklearn.metrics import accuracy_score
 from torch.nn.init import kaiming_uniform_
 from torch.nn.init import xavier_uniform_
-
+import tensorflow as tf
+import pickle
 """
 Code based on the tutorial by:
 https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
@@ -24,6 +25,22 @@ define the model that will be used
 The class implementation is for a simple layer, not for a multilayer
 Derives from Module class in torch
 """
+def readTrainingInputs():
+    """
+    Will return the Counter of Q(s,a) from qValueFile
+    """
+    with open('./trainingInput.pickle', 'rb') as handle:
+        trainingInputs = pickle.load(handle)
+    return trainingInputs
+
+
+def readTrainingOutputs():
+    """
+    Return the list of weights from LinearApproxFile
+    """
+    with open('./trainingOutput.pickle', 'rb') as handle:
+        trainingOutputs = pickle.load(handle)
+    return trainingOutputs
 class MLP(Module):
     def __init__(self, inputNumber):
         #call super constructor for Module
@@ -109,8 +126,14 @@ class DQNetwork(object):
     def loadData(self):
         #create tensors from the data file
         #for the moment, we will create temporaries from random
-        x =  T.randn(self.actions, self.inputs) #situations
-        y =  T.randn(self.actions, self.outputs) #results
+        # x =  T.randn(self.actions, self.inputs) #situations
+        # y =  T.randn(self.actions, self.outputs) #results
+        x = tf.convert_to_tensor(np.asarray(readTrainingInputs(), dtype=np.float32),dtype=tf.float32)
+        print(x)
+        y = tf.convert_to_tensor(np.asarray(readTrainingOutputs(), dtype=np.float32),dtype=tf.float32)
+        print(y)
+        # x =  Tensor([Tensor(feature)for feature in row] for row in readTrainingInputs()) #situations
+        # y = Tensor([Tensor(output)for output in row] for row in readTrainingOutputs()) #results
 
         return x, y
 
@@ -142,8 +165,8 @@ class DQNetwork(object):
             # override the __call__ operator so you can call them like functions. When
             # doing so you pass a Tensor of input data to the Module and it produces
             # a Tensor of output data.
+            print('crash')
             y_pred = self.model(x)
-
             # Compute and print loss. We pass Tensors containing the predicted and true
             # values of y, and the loss function returns a Tensor containing the
             # loss.
