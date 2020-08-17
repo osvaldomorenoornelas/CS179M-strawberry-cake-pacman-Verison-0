@@ -161,6 +161,7 @@ class DQAgent(ReflexCaptureAgent):
         self.trainData, self.testData = self.network.loadData()
         print('Input size', self.sizeOfInput())
         print('Output size', self.sizeOfOutput())
+        #self.input_dims = self.sizeOfInput()
         # train the model
         print('train data')
         self.network.Train(self.trainData, self.testData)
