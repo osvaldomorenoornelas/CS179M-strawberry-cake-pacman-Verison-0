@@ -354,9 +354,9 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             (i+j)/2), gameState.data.layout.agentPositions[0][1], gameState.data.layout.agentPositions[1][1]))
         # for training data
 
-        self.gameFeatures = []
+        # self.gameFeatures = []
         # self.gameOutputs = []
-        # self.gameFeatures = readTrainingInputs()
+        self.gameFeatures = readTrainingInputs()
         self.gameOutputs = []
 
     def getEnemyDistance(self, gameState):
@@ -759,11 +759,11 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
     def final(self, gameState):
         self.gameOutputs = [
             [i + self.getScore(gameState) for i in l] for l in self.gameOutputs]
-        # totalOutputs = readTrainingOutputs()+self.gameOutputs
-        totalOutputs = []+self.gameOutputs
+        totalOutputs = readTrainingOutputs()+self.gameOutputs
+        # totalOutputs = []+self.gameOutputs
 
-        print(len(self.gameFeatures))
-        print((totalOutputs))
+        # print(len(self.gameFeatures))
+        # print(len(totalOutputs))
         with open('./trainingInput.pickle', 'wb') as handle:
             pickle.dump(self.gameFeatures, handle,
                         protocol=pickle.HIGHEST_PROTOCOL)
