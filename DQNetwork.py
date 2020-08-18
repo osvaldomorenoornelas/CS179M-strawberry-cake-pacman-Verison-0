@@ -142,6 +142,7 @@ class DQNetwork(object):
         x = T.tensor(a)
         y = T.tensor(b)
 
+        print(x)
         print(y)
 
         return x, y
@@ -168,7 +169,7 @@ class DQNetwork(object):
 
         learning_rate = 0.001
 
-        for t in range(2000):
+        for t in range(4000):
             # Forward pass: compute predicted y by passing x to the model. Module objects
             # override the __call__ operator so you can call them like functions. When
             # doing so you pass a Tensor of input data to the Module and it produces

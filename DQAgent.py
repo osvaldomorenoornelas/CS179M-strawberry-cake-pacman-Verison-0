@@ -132,7 +132,7 @@ class DQAgent(ReflexCaptureAgent):
         # initailize input data
         #N, D_in, H, D_out = 64, 1000, 100, 10
         self.n_actions = 5
-        self.input_dims = 3 #3 features
+        self.input_dims = 8 #3 features
         self.out_dims = 1 #1 output
         self.batch_size = 0
         self.hidden_dimension = 2
@@ -412,6 +412,31 @@ class DQAgent(ReflexCaptureAgent):
             ourSide = (ourSide[0] - 1,ourSide[1]) if self.red else (ourSide[0] + 1,ourSide[1])
         return self.getMazeDistance(myPos, ourSide)
 
+    def distToInvader(self, gameState):
+        """
+        Returns distance to an invader
+        """
+        myPos = gameState.getAgentState(self.index).getPosition()
+        enemies = [gameState.getAgentState(i)
+                   for i in self.getOpponents(gameState)]
+        numEnemies = len([a for a in enemies if a.isPacman])
+        # holds the invaders that we can see
+        invaders = [a for a in enemies if a.isPacman and a.getPosition()
+                    != None]
+        if len(invaders):
+            dists = [self.getMazeDistance(
+                myPos, a.getPosition()) for a in invaders]
+            return min(dists)
+        return 0
+
+    def getNumWalls(self, gameState):
+        """
+        Returns the number of walls in our way.
+        This would be the 5 - number of legal actions at our current state
+        Because stop is always a legal action
+        """
+        return 5 - len(gameState.getLegalActions(self.index))
+
     def getFeatures(self, gameState, action):
         """
         features of the state
@@ -422,6 +447,12 @@ class DQAgent(ReflexCaptureAgent):
         stateFeatures.append(self.getEnemyDistance(successor))
         stateFeatures.append(self.distToFood(successor))
         stateFeatures.append(self.distOurSide(successor))
+        stateFeatures.append(self.distToInvader(successor))
+        stateFeatures.append(self.getScore(successor))
+        stateFeatures.append(self.getNumWalls(successor))
+
+        stateFeatures.append(gameState.data.agentStates[self.index].numCarrying)
+        stateFeatures.append(int(gameState.getAgentState(self.index).isPacman))
         return stateFeatures
 
         features = [1]  # feature 0 is always 1
