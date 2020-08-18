@@ -157,7 +157,7 @@ class DQNetwork(object):
     MSELoss measures the mean squared error
     """
     def LossFunction(self):
-        loss_fn = T.nn.MSELoss(reduction='sum')
+        loss_fn = T.nn.MSELoss(reduction='mean')
         return loss_fn
 
     """
@@ -166,9 +166,9 @@ class DQNetwork(object):
     """
     def Train(self, x, y):
 
-        learning_rate = 1e-4
+        learning_rate = 0.001
 
-        for t in range(1000):
+        for t in range(2000):
             # Forward pass: compute predicted y by passing x to the model. Module objects
             # override the __call__ operator so you can call them like functions. When
             # doing so you pass a Tensor of input data to the Module and it produces
@@ -179,8 +179,8 @@ class DQNetwork(object):
             # loss.
             lossF = self.LossFunction()
             loss  = lossF(y_pred, y)
-            #if t % 100 == 99:
-            #    print(t, loss.item())
+            if t % 100 == 99:
+                print(t, loss.item())
 
             # Zero the gradients before running the backward pass.
             self.model.zero_grad()

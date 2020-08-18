@@ -135,7 +135,10 @@ class DQAgent(ReflexCaptureAgent):
         self.input_dims = 3 #3 features
         self.out_dims = 1 #1 output
         self.batch_size = 0
-        self.hidden_dimension = 1
+        self.hidden_dimension = 2
+
+        self.middleOfBoard = tuple(map(lambda i, j: math.floor(
+            (i + j) / 2), gameState.data.layout.agentPositions[0][1], gameState.data.layout.agentPositions[1][1]))
 
         # declare Q-Value Network
 
@@ -398,11 +401,29 @@ class DQAgent(ReflexCaptureAgent):
             return previousFood != foodLeft
         return False
 
+    def distOurSide(self,gameState):
+        if not gameState.getAgentState(self.index).isPacman:return 0
+        myState = gameState.getAgentState(self.index)
+        myPos = myState.getPosition()
+        ourSide = self.middleOfBoard
+        # to make sure that we are at our side
+        #  in case there is a wall
+        while gameState.hasWall(ourSide[0], ourSide[1]):
+            ourSide = (ourSide[0] - 1,ourSide[1]) if self.red else (ourSide[0] + 1,ourSide[1])
+        return self.getMazeDistance(myPos, ourSide)
+
     def getFeatures(self, gameState, action):
         """
         features of the state
         """
         successor = gameState.generateSuccessor(self.index, action)
+
+        stateFeatures = []
+        stateFeatures.append(self.getEnemyDistance(successor))
+        stateFeatures.append(self.distToFood(successor))
+        stateFeatures.append(self.distOurSide(successor))
+        return stateFeatures
+
         features = [1]  # feature 0 is always 1
 
         # distance to a visible enemy
