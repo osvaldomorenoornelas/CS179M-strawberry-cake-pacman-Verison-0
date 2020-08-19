@@ -354,7 +354,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             (i+j)/2), gameState.data.layout.agentPositions[0][1], gameState.data.layout.agentPositions[1][1]))
         # for training data
 
-        # self.gameFeatures = []
+        #self.gameFeatures = []
         # self.gameOutputs = []
         self.gameFeatures = readTrainingInputs()
         self.gameOutputs = []
@@ -414,14 +414,16 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         """
         score = 0
         # rewards
-        score += 1.5 if self.ateFood(gameState) else 0 # add if we eat food
+        score += 1.5 * 20 if self.ateFood(gameState) else 0 # add if we eat food
         score += self.getScoreIncrease(gameState) # add the amount of score increase
         score += 1 if gameState.getAgentState(self.index).isPacman else 0
         foodList = self.getFood(gameState).asList()
-        if len(foodList):
-            minDistance = min([self.getMazeDistance(gameState.getAgentState(
-                self.index).getPosition(), food) for food in foodList])
-            score += np.reciprocal(float(minDistance)) # distance to closest food
+
+        if not self.ateFood(gameState):
+            if len(foodList):
+                minDistance = min([self.getMazeDistance(gameState.getAgentState(
+                    self.index).getPosition(), food) for food in foodList])
+                score += np.reciprocal(float(minDistance)) * 20 # distance to closest food
         # if the game is over big reward if we win, else penalty if we lose
         # punishment
         score -= 1 if self.checkDeath(gameState) else 0 # punish if we die
@@ -542,7 +544,10 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         myPos = gameState.getAgentState(self.index).getPosition()
         # say that capsules are also food
         foodList += self.getCapsules(gameState)
-        if len(foodList) > 0:  # This should always be True,  but better safe than sorry
+        if self.ateFood(gameState):
+            print("ate food")
+            return 1.5
+        if len(foodList) > 0:  # This should always be True, but better safe than sorry
             return min([self.getMazeDistance(myPos, food) for food in foodList])
         return 0
 
@@ -759,7 +764,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
     def final(self, gameState):
         self.gameOutputs = [[i + self.getScore(gameState)/self.totalFood for i in l] for l in self.gameOutputs]
         totalOutputs = readTrainingOutputs()+self.gameOutputs
-        # totalOutputs = []+self.gameOutputs
+        #totalOutputs = []+self.gameOutputs
 
         print(len(self.gameFeatures))
         print(len(totalOutputs))

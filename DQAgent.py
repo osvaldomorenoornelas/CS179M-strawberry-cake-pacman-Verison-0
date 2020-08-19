@@ -17,29 +17,6 @@ from DQNetwork import MLP
 from DQNetwork import DQNetwork
 import torch as T
 
-# calculate reward by the transition of each state
-
-# init w = w_1,w_2,w_3,..w_n randomly in [0,1]
-# for each episonde,
-# 𝑠←initial state of episode
-# 𝑎←action given by policy 𝜋 (recommend: 𝜖-greedy)
-# Take action 𝑎, observe reward 𝑟 and next state 𝑠′
-# 𝑤←𝑤+𝛼(𝑟+𝛾∗𝑚𝑎𝑥𝑎′𝑄(𝑠′,𝑎′)−𝑄(𝑠,𝑎))∇⃗ 𝑤𝑄(𝑠,𝑎)
-# 𝑠←𝑠′
-#
-# class DeepQNetwork(nn.Module):
-#     return
-
-# An experience in SARSA of the form ⟨s,a,r,s',a'⟩ (the agent was in state s, did action a, and received reward r and ended up in state s', in which it decided to do action a')
-# Q(s,a)≈θTϕ(s,a)
-# Q(s,a) Sum(Features(state)*weight(action))
-# each action gets a set of n weights to represent the q values for that action
-# represent state,action with a function, instead of a table.
-# gradient descent to find local min w = -0.5alpha*w*J(w)
-# where J(w) is the loss
-# 𝑄(𝑠,𝑎)=𝑤1𝑓1(𝑠,𝑎)+𝑤2𝑓2(𝑠,𝑎)+⋯,
-# Q*(s,a) = Q*(s,a) + alpha(r+gamma*Q*(s',a) - Q*(s,a))
-# for files
 import pickle
 import os
 
@@ -61,13 +38,6 @@ def readTrainingOutputs():
         trainingOutputs = pickle.load(handle)
     return trainingOutputs
 
-# def readQValues():
-#     """
-#     Will return the Counter of Q(s,a) from qValueFile
-#     """
-#     with open('./qValueFile.pickle', 'rb') as handle:
-#         qVals = pickle.load(handle)
-#     return qVals
 
 
 def readWeights():
@@ -114,28 +84,17 @@ class DQAgent(ReflexCaptureAgent):
 
         # Q Value functions
         self.epsilon = 0.005  # exploration prob
-        # learning rate --> start with a large like 0.1 then exponentially smaller like 0.01, 0.001
         self.alpha = 0.01
         self.gamma = 0.8  # discount rate to prevent overfitting
-        self.QValues = util.Counter()  # Stores the Q values for updating
-        self.scaredGhostTimers = [0, 0]
-        self.score = 0
-        # for storing the action that we took and the past state
-        # for some reson previousObservationHistory does not work
-        self.previousGameStates = []
-        self.previousActionTaken = []
-        self.weights = list()  # weights will be a list, update after each action
-
-        self.weights = readWeights()
-        # self.weightInitialization()
+        
+      
 
         # initailize input data
-        #N, D_in, H, D_out = 64, 1000, 100, 10
         self.n_actions = 5
-        self.input_dims = 8 #3 features
+        self.input_dims = 8 # 8 features
         self.out_dims = 1 #1 output
         self.batch_size = 0
-        self.hidden_dimension = 2
+        self.hidden_dimension = 7
 
         self.middleOfBoard = tuple(map(lambda i, j: math.floor(
             (i + j) / 2), gameState.data.layout.agentPositions[0][1], gameState.data.layout.agentPositions[1][1]))
@@ -145,7 +104,6 @@ class DQAgent(ReflexCaptureAgent):
         self.network = DQNetwork(self.gamma, self.epsilon, self.n_actions, self.input_dims,
                                  self.out_dims, self.batch_size, self.hidden_dimension)
 
-        # if pickle file has data
         """
         with open("./model.pickle", 'rb') as handle:
             #weights = pickle.load(handle)
@@ -164,7 +122,7 @@ class DQAgent(ReflexCaptureAgent):
         self.trainData, self.testData = self.network.loadData()
         print('Input size', self.sizeOfInput())
         print('Output size', self.sizeOfOutput())
-        #self.input_dims = self.sizeOfInput()
+        
         # train the model
         print('train data')
         self.network.Train(self.trainData, self.testData)
@@ -187,19 +145,11 @@ class DQAgent(ReflexCaptureAgent):
             # holds the ghosts that we can see
             ghosts = [a for a in enemies if not a.isPacman and a.getPosition()
                       != None]
-            if len(ghosts) < 1:
-                return 0
+            if len(ghosts) < 1: return 0
             dists = [self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), a.getPosition())
                      for a in ghosts]
             return min(dists)
         return 0
-
-    def weightInitialization(self):
-        """
-        initializes 3 weights randomly from [0,1]. --> 3 Features = 3 weights
-        Only call this ONCE --> for the first time running the training
-        """
-        self.weights = [random.random() for _ in range(3)]
 
     def distToFood(self, gameState):
         """
@@ -209,7 +159,10 @@ class DQAgent(ReflexCaptureAgent):
         myPos = gameState.getAgentState(self.index).getPosition()
         # say that capsules are also food
         foodList += self.getCapsules(gameState)
-        if len(foodList) > 0:  # This should always be True,  but better safe than sorry
+        if self.ateFood(gameState):
+            print("ate food")
+            return 1.5
+        if len(foodList) > 0:  # This should always be True, but better safe than sorry
             return min([self.getMazeDistance(myPos, food) for food in foodList])
         return 0
 
@@ -247,121 +200,15 @@ class DQAgent(ReflexCaptureAgent):
             return 0
         return 0
 
-    def getQValue(self, gameState, action):
-        """
-        Returns the Q value of the given state and action.
-        If the state is not in the QValue, will return Q(s,a) = 0
-        """
-        # Qw(s,a) = w0+w1 F1(s,a) + ...+ wn Fn(s,a)
-        Qval = 0
-        features = self.getFeatures(gameState, action)
-        for i in range(len(self.weights)):
-            Qval += self.weights[i] * features[i]
-        return Qval
-
-    def updateQValue(self, last_state, last_action, reward, maxQ):
-        """
-        Updates the value for the gamestate and action in QTable 
-        """
-        self.QValues[(last_state, last_action)] = (reward + self.gamma + maxQ) * \
-            self.alpha + (1 - self.alpha) * self.QValues[
-            (last_state, last_action)]
-
-    def getMaxQ(self, gameState):
-        """
-        return the maximum Q of gameState
-        """
-        q_list = []
-        for a in gameState.getLegalActions(self.index):
-            q = self.getQValue(gameState, a)
-            q_list.append(q)
-        if len(q_list) == 0:
-            return 0
-        return max(q_list)
 
     def getNetworkPrediction(self, features):
-
         # make a prediction
         # pass in a set of features to be ran thru the model
         prediction = self.network.predict(features)
+        #return prediction.round()
+        return prediction
 
-        return prediction.round()
 
-    def bestActionNN(self, gameState):
-        actions = gameState.getLegalActions(self.index)
-        if Directions.STOP in actions:
-            # don't want to stop
-            actions.remove(Directions.STOP)
-        bestAction = actions[0]
-        highestQVal = 0
-        for action in actions:
-            print("action: ", action)
-            # take in what the state action combination is
-            features = self.getFeatures(gameState, action)
-            outRes = self.getNetworkPrediction(features)
-            print("passed")
-            temp = outRes[0][0]
-            if temp > highestQVal:
-                bestAction = action
-                highestQVal = temp
-        return bestAction
-
-    def bestAction(self, gameState):
-        """
-        Gets the best action given the current state. Find the action with the highest Q value using weights
-        """
-        actions = gameState.getLegalActions(self.index)
-        if Directions.STOP in actions:
-            # don't want to stop
-            actions.remove(Directions.STOP)
-        bestAction = actions[0]
-        highestQVal = 0
-        for action in actions:
-            temp = self.getQValue(gameState, action)
-            if temp > highestQVal:
-                bestAction = action
-                highestQVal = temp
-        return bestAction
-
-    def isCapsuleEaten(self, gameState):
-        """
-        Checks if a capsule was eaten by our team pacman. If it was eaten, then this function also
-        sets the enemy ghosts scared timer to 40
-        """
-        capsule = self.getCapsules(gameState)
-        previousState = self.getPreviousObservation()  # get the previous observation
-        if previousState:
-            previousCapsules = self.getCapsules(previousState)
-        if len(capsule) != len(previousCapsules):
-            # both ghost's scared timers to 40 moves
-            self.scaredGhostTimers = [40, 40]
-            print("our pacman ate capsule")
-            return True
-        else:
-            return False
-
-    def isGhostEaten(self, gameState, ghostIndex):
-        """
-        Checks if the ghost in arg ghostIndex was eaten yet during the scared state. 
-        There is no need to check if a ghost was eaten if it already has a value of 0 in
-        its scaredGhostTimer index.
-        """
-        if self.isScared(gameState, ghostIndex):
-            # get the ghost at the arg ghostIndex
-            ghost = self.getOpponents(gameState)[ghostIndex]
-            previousObservation = self.getPreviousObservation()  # get the previous observation
-            if previousObservation:
-                previousGhostPosition = previousObservation.getAgentPosition(
-                    ghost)
-            if previousGhostPosition:
-                currentGhostPosition = gameState.getAgentPosition(ghost)
-                # If we cannot find the ghost anymore, or if the ghost moved more than 1 position then the ghost
-                # has been eaten.
-                if not currentGhostPosition or self.getMazeDistance(previousGhostPosition, currentGhostPosition) > 1:
-                    # ghost is no longer scared after being eaten
-                    self.scaredGhostTimers[ghostIndex] = 0
-                return True
-        return False
 
     def getReward(self, gameState):
         """
@@ -391,7 +238,10 @@ class DQAgent(ReflexCaptureAgent):
         """
         Returns true if PacMan eats food in the turn
         """
-        if len(self.previousGameStates) > 1:
+
+        previousState = self.getPreviousObservation()
+
+        if previousState:
             previousObservation = self.getPreviousObservation()  # get the previous observation
             # get previous turn number of food on enemy side
             previousFood = len(self.getFood(previousObservation).asList())
@@ -443,134 +293,46 @@ class DQAgent(ReflexCaptureAgent):
         """
         successor = gameState.generateSuccessor(self.index, action)
 
-        stateFeatures = []
+        stateFeatures = list()
         stateFeatures.append(self.getEnemyDistance(successor))
         stateFeatures.append(self.distToFood(successor))
         stateFeatures.append(self.distOurSide(successor))
         stateFeatures.append(self.distToInvader(successor))
         stateFeatures.append(self.getScore(successor))
         stateFeatures.append(self.getNumWalls(successor))
+        stateFeatures.append(successor.data.agentStates[self.index].numCarrying)
+        stateFeatures.append(int(successor.getAgentState(self.index).isPacman))
+        # stateFeatures.append(len(self.getFood(successor).asList()))
 
-        stateFeatures.append(gameState.data.agentStates[self.index].numCarrying)
-        stateFeatures.append(int(gameState.getAgentState(self.index).isPacman))
         return stateFeatures
 
-        features = [1]  # feature 0 is always 1
-
-        # distance to a visible enemy
-        features += [self.getEnemyDistance(successor) * 0.1]
-        # features += [self.getMazeDistance(
-        #     self.start, successor.getAgentState(self.index).getPosition())*0.3] # distance from start
-        minDistance = min([self.getMazeDistance(successor.getAgentState(
-            self.index).getPosition(), food) for food in self.getFood(successor).asList()])
-        # choose action that decreases distance
-        # features += [np.reciprocal(float(minDistance))] # distance to closest food
-
-        if self.ateFood(successor):
-            # Because when we eat the closest food, the distance is 0 --> eating is bad
-            # we will make it so that we give it some nonzero weight
-            features += [1.001]
-        else:
-            features += [np.reciprocal(float(minDistance))
-                         ] if minDistance else [0]
-
-        return features
-
-    def calculateNewWeight(self, weight, delta, feature):
-        """
-        Helper function to calculate new weights using rule
-        wi←wi+ηδFi(s,a).
-        Pass in w_i, δ=r+γQ(s',a')-Q(s,a), and F_i
-        """
-        weight = weight + self.alpha * delta * feature
-        # print("new weight", weight)
-        return weight
-
-    def updateWeights(self, last_state, last_action, reward, max_q):
-        """
-        Updates weights using rule
-        wi←wi+ηδFi(s,a).
-        """
-        if (len(self.previousGameStates) > 0):
-            delta = reward + self.gamma * max_q - \
-                self.getQValue(last_state, last_action)  # δ=r+γQ(s',a')-Q(s,a)
-            for i in range(0, len(self.weights)):
-                self.weights[i] = self.calculateNewWeight(
-                    self.weights[i], delta, self.getFeatures(last_state, last_action)[i])
-
-    def chooseAction(self, gameState):
-        """
-        Decides on the best action given the current state and looks at the Q table
-        """
+    def bestActionNN(self, gameState):
         actions = gameState.getLegalActions(self.index)
         if Directions.STOP in actions:
             # don't want to stop
             actions.remove(Directions.STOP)
+        bestAction = actions[0]
+        highestQVal = 0
+        for action in actions:
+            #print("action: ", action)
+            # take in what the state action combination is
+            features = self.getFeatures(gameState, action)
+            outRes = self.getNetworkPrediction(features)
+            temp = outRes[0][0]
+            print("Temp: ", temp)
+            print("Highest Val: ", highestQVal)
+            if temp > highestQVal:
+                bestAction = action
+                highestQVal = temp
+        return bestAction
 
-        # reward of gameState to new gamestate
-        # reward = self.Score(gameState)-self.score
-        reward = self.getReward(gameState)
-        # print('reward', reward)
-
-        # e-greedy
-        # if util.flipCoin(self.epsilon):
-        #     action = random.choice(actions)
-        # else:
+   
+    def chooseAction(self, gameState):
+        """
+        Decides on the best action given the current state and looks at the Q table
+        """
         action = self.bestActionNN(gameState)
-        #action = self.bestAction(gameState)
-
-        if len(self.previousGameStates) > 0:
-            last_state = self.previousGameStates[-1]
-            last_action = self.previousActionTaken[-1]
-            max_q = self.getMaxQ(gameState)
-            # self.updateQValue(last_state, last_action, reward, max_q)
-            self.updateWeights(last_state, last_action, reward, max_q)
-            # self.features.append({'features':self.getFeatures(gameState,action),'value':max_q})
-
-        # update the score for the current state
-        # self.score = self.Score(gameState)
-        self.previousGameStates.append(gameState)
-        self.previousActionTaken.append(action)
-
-        # Check if we ate food --> then increase the food we are carrying
-        successor = gameState.generateSuccessor(self.index, action)
-        if self.ateFood(successor) == True:
-            self.numFoodCarrying += 1
-
         return action
 
-    def final(self, gameState):
-        """
-        Finally, we will update our weight one last time and we will push our updated weights back into file.
-        """
-        reward = self.getReward(gameState)
-        last_state = self.previousGameStates[-1]
-        last_action = self.previousActionTaken[-1]
-        max_q = self.getMaxQ(gameState)
-        self.updateWeights(last_state, last_action, reward, max_q)
+        
 
-        print("game over. Weights:")
-        print(self.weights)
-        # put weights into file
-        with open('./LinearApproxFile.pickle', 'wb') as handle:
-            pickle.dump(self.weights, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-        # put the Q values back into file
-        # with open('./qValueFile.pickle', 'wb') as handle:
-        #     pickle.dump(self.QValues, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        # Feature check
-        # with open('./Features.pickle', 'wb') as handle:
-        #     pickle.dump(self.features, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-        # save the model for the next game
-        #torch.save(model.state_dict(), PATH)
-        #T.save(self.network.Model(), "./model.pickle")
-
-# weights
-# 6:06 pm [1.5424054141031014, 0.055600616921998164, 5.563450010626308]
-# [2.316680230669802, 1.6638907160685494, 5.635170662376932]
-# [2.098754896275266, 1.4586679144636339, 5.145779499944092]
-# [2.0963943742225535, 1.2076193305869922, 5.667179874740193]
-# [1.5424054141031014, 0.055600616921998164, 5.563450010626308]
-# [2.098754896275266, 1.4586679144636339, 5.145779499944092]
-# old --> does not work as well [2.450014261728269, 0.09639381124804589, 8.38406654878239]
