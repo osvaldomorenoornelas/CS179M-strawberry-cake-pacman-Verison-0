@@ -128,16 +128,10 @@ class DQNetwork(object):
     def loadData(self):
         #create tensors from the data file
         #for the moment, we will create temporaries from random
-        #x =  T.randn(self.actions, self.inputs) #situations
-        #y =  T.randn(self.actions, self.outputs) #results
 
         a = np.asarray(readTrainingInputs(), dtype=np.float32)
         b = np.asarray(readTrainingOutputs(), dtype=np.float32)
-        #y = Tensor([Tensor(output)for output in row] for row in readTrainingOutputs()) #results
-
-        #x = tf.convert_to_tensor(np.asarray(readTrainingInputs(), dtype=np.float32),dtype=tf.float32)
-        #print(x)
-        #y = tf.convert_to_tensor(np.asarray(readTrainingOutputs(), dtype=np.float32),dtype=tf.float32)
+        
 
         x = T.tensor(a)
         y = T.tensor(b)
@@ -257,7 +251,8 @@ class DQNetwork(object):
             #actualData = actualData.reshape((len(actualData), 1))
 
             #round class values
-            modelEval = modelEval.round()
+            modelEval = modelEval
+            # modelEval = modelEval.round()
 
             predictions.append(modelEval)
             actuals.append(actualData)
@@ -267,7 +262,8 @@ class DQNetwork(object):
         actuals     = np.vstack(actuals)
 
         #get the accuracy (will improve as iterations occur)
-        accuracy = accuracy_score(actuals.round(), predictions, normalize = False)
+        # accuracy = accuracy_score(actuals.round(), predictions, normalize = False)
+        accuracy = accuracy_score(actuals, predictions, normalize = True)
 
         return accuracy
 
@@ -275,11 +271,11 @@ class DQNetwork(object):
     Predicts for a row of data. May have to be more specific because
     of how pacman is structured
     """
-    def predict(self, rowData):
+    def predict(self, features):
         #convert row to data
-        rowData = Tensor([rowData])
+        features = Tensor([features])
         #create a prediction
-        modelData = self.model(rowData)
+        modelData = self.model(features)
 
         #get the numpy Data
         modelData = modelData.detach().numpy()
