@@ -39,7 +39,6 @@ def readTrainingOutputs():
     return trainingOutputs
 
 
-
 def readWeights():
     """
     Return the list of weights from LinearApproxFile
@@ -86,15 +85,13 @@ class DQAgent(ReflexCaptureAgent):
         self.epsilon = 0.005  # exploration prob
         self.alpha = 0.01
         self.gamma = 0.8  # discount rate to prevent overfitting
-        
-      
 
         # initailize input data
-        self.n_actions = 5
-        self.input_dims = 8 # 8 features
-        self.out_dims = 1 #1 output
-        self.batch_size = 0
-        self.hidden_dimension = 7
+        self.n_actions = 4
+        self.input_dims = 2  # 8 features
+        self.out_dims = 1  # 1 output
+        self.batch_size = 10
+        self.hidden_dimension = 1
 
         self.middleOfBoard = tuple(map(lambda i, j: math.floor(
             (i + j) / 2), gameState.data.layout.agentPositions[0][1], gameState.data.layout.agentPositions[1][1]))
@@ -104,25 +101,12 @@ class DQAgent(ReflexCaptureAgent):
         self.network = DQNetwork(self.gamma, self.epsilon, self.n_actions, self.input_dims,
                                  self.out_dims, self.batch_size, self.hidden_dimension)
 
-        """
-        with open("./model.pickle", 'rb') as handle:
-            #weights = pickle.load(handle)
-            if os.path.getsize("./model.pickle") > 0:
-                self.network.setModel(T.load("./model.pickle"))
-            #else by default it will create a default model to be created and trained
-            else:
-                # load the data
-                trainData, testData = self.network.loadData()
-                #train the model
-                self.network.Train(trainData, testData)
-                print("Training succesful")
-        """
         # load the data
         print('get data')
         self.trainData, self.testData = self.network.loadData()
         print('Input size', self.sizeOfInput())
         print('Output size', self.sizeOfOutput())
-        
+
         # train the model
         print('train data')
         self.network.Train(self.trainData, self.testData)
@@ -145,7 +129,8 @@ class DQAgent(ReflexCaptureAgent):
             # holds the ghosts that we can see
             ghosts = [a for a in enemies if not a.isPacman and a.getPosition()
                       != None]
-            if len(ghosts) < 1: return 0
+            if len(ghosts) < 1:
+                return 0
             dists = [self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), a.getPosition())
                      for a in ghosts]
             return min(dists)
@@ -160,55 +145,18 @@ class DQAgent(ReflexCaptureAgent):
         # say that capsules are also food
         foodList += self.getCapsules(gameState)
         if self.ateFood(gameState):
-            print("ate food")
+            # print("ate food")
             return 1.5
         if len(foodList) > 0:  # This should always be True, but better safe than sorry
             return min([self.getMazeDistance(myPos, food) for food in foodList])
         return 0
 
-    def checkDeath(self, gameState):
-        """
-        checks if pacman dies by seeing if we return back to start.
-        """
-
-        if len(self.previousGameStates) > 0:
-            currentPos = gameState.getAgentState(self.index).getPosition()
-            # if we are at self.start, say we died.
-            if currentPos == self.start:
-                self.numFoodCarrying = 0
-                return 1
-
-        return 0
-
-    def getScoreIncrease(self, gameState):
-        """
-        returns how much we increased the score
-        """
-        if len(self.previousGameStates) > 0:
-            previousState = self.getPreviousObservation()
-            score = self.getScore(gameState)
-            prevScore = self.getScore(previousState)
-            if prevScore != score:
-                if self.red:
-                    # if we get points as red then score increases
-                    increase = score - prevScore
-                    return increase if increase > 0 else 0
-                else:
-                    # if we get points as blue then score decrease
-                    increase = score - prevScore
-                    return increase if increase > 0 else 0
-            return 0
-        return 0
-
-
     def getNetworkPrediction(self, features):
         # make a prediction
         # pass in a set of features to be ran thru the model
         prediction = self.network.predict(features)
-        #return prediction.round()
+        # return prediction.round()
         return prediction
-
-
 
     def getReward(self, gameState):
         """
@@ -251,15 +199,17 @@ class DQAgent(ReflexCaptureAgent):
             return previousFood != foodLeft
         return False
 
-    def distOurSide(self,gameState):
-        if not gameState.getAgentState(self.index).isPacman:return 0
+    def distOurSide(self, gameState):
+        if not gameState.getAgentState(self.index).isPacman:
+            return 0
         myState = gameState.getAgentState(self.index)
         myPos = myState.getPosition()
         ourSide = self.middleOfBoard
         # to make sure that we are at our side
         #  in case there is a wall
         while gameState.hasWall(ourSide[0], ourSide[1]):
-            ourSide = (ourSide[0] - 1,ourSide[1]) if self.red else (ourSide[0] + 1,ourSide[1])
+            ourSide = (ourSide[0] - 1, ourSide[1]
+                       ) if self.red else (ourSide[0] + 1, ourSide[1])
         return self.getMazeDistance(myPos, ourSide)
 
     def distToInvader(self, gameState):
@@ -293,15 +243,15 @@ class DQAgent(ReflexCaptureAgent):
         """
         successor = gameState.generateSuccessor(self.index, action)
 
-        stateFeatures = list()
+        stateFeatures = []
         stateFeatures.append(self.getEnemyDistance(successor))
         stateFeatures.append(self.distToFood(successor))
-        stateFeatures.append(self.distOurSide(successor))
-        stateFeatures.append(self.distToInvader(successor))
-        stateFeatures.append(self.getScore(successor))
-        stateFeatures.append(self.getNumWalls(successor))
-        stateFeatures.append(successor.data.agentStates[self.index].numCarrying)
-        stateFeatures.append(int(successor.getAgentState(self.index).isPacman))
+        # stateFeatures.append(self.distOurSide(successor))
+        # stateFeatures.append(self.distToInvader(successor))
+        # stateFeatures.append(self.getScore(successor))
+        # stateFeatures.append(self.getNumWalls(successor))
+        # stateFeatures.append(int(successor.getAgentState(self.index).isPacman))
+        # stateFeatures.append(successor.data.agentStates[self.index].numCarrying)
         # stateFeatures.append(len(self.getFood(successor).asList()))
 
         return stateFeatures
@@ -319,20 +269,16 @@ class DQAgent(ReflexCaptureAgent):
             features = self.getFeatures(gameState, action)
             outRes = self.getNetworkPrediction(features)
             temp = outRes[0][0]
-            print("Temp: ", temp)
-            print("Highest Val: ", highestQVal)
+            # print("Temp: ", temp)
+            # print("Highest Val: ", highestQVal)
             if temp > highestQVal:
                 bestAction = action
                 highestQVal = temp
         return bestAction
 
-   
     def chooseAction(self, gameState):
         """
         Decides on the best action given the current state and looks at the Q table
         """
         action = self.bestActionNN(gameState)
         return action
-
-        
-

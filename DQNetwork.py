@@ -136,9 +136,6 @@ class DQNetwork(object):
         x = T.tensor(a)
         y = T.tensor(b)
 
-        print(x)
-        print(y)
-
         return x, y
 
     """
@@ -160,10 +157,9 @@ class DQNetwork(object):
     using tutorial code from: https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
     """
     def Train(self, x, y):
-
         learning_rate = 0.001
 
-        for t in range(15000):
+        for t in range(9000):
             # Forward pass: compute predicted y by passing x to the model. Module objects
             # override the __call__ operator so you can call them like functions. When
             # doing so you pass a Tensor of input data to the Module and it produces
@@ -193,7 +189,7 @@ class DQNetwork(object):
                     param -= learning_rate * param.grad
 
     """
-    To train the model we need to optamize compute, get loss, and
+    (We don't use this) To train the model we need to optamize compute, get loss, and
     update
     """
     def TrainModel(self, trainData):
@@ -268,7 +264,7 @@ class DQNetwork(object):
         return accuracy
 
     """
-    Predicts for a row of data. May have to be more specific because
+    (We don't use this) Predicts for a row of data. May have to be more specific because
     of how pacman is structured
     """
     def predict(self, features):

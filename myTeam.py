@@ -354,7 +354,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             (i+j)/2), gameState.data.layout.agentPositions[0][1], gameState.data.layout.agentPositions[1][1]))
         # for training data
 
-        #self.gameFeatures = []
+        self.gameFeatures = []
         # self.gameOutputs = []
         self.gameFeatures = readTrainingInputs()
         self.gameOutputs = []
@@ -407,6 +407,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                 return 1
         return 0
 
+
     def getReward(self, gameState):
         """
         Gets the reward of the current gameState
@@ -414,22 +415,21 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         """
         score = 0
         # rewards
-        score += 1.5 * 20 if self.ateFood(gameState) else 0 # add if we eat food
-        score += self.getScoreIncrease(gameState) # add the amount of score increase
-        score += 1 if gameState.getAgentState(self.index).isPacman else 0
+        # score += 1.5 if self.ateFood(gameState) else -0.5 # add if we eat food
+        # score += self.getScoreIncrease(gameState)*2 # add the amount of score increase
+        # score += 1 if gameState.getAgentState(self.index).isPacman else -1
         foodList = self.getFood(gameState).asList()
 
         if not self.ateFood(gameState):
-            if len(foodList):
                 minDistance = min([self.getMazeDistance(gameState.getAgentState(
                     self.index).getPosition(), food) for food in foodList])
-                score += np.reciprocal(float(minDistance)) * 20 # distance to closest food
+                score = np.reciprocal(minDistance) # distance to closest food
+
+        score += self.getEnemyDistance(gameState)
         # if the game is over big reward if we win, else penalty if we lose
         # punishment
-        score -= 1 if self.checkDeath(gameState) else 0 # punish if we die
+        # score -= 1 if self.checkDeath(gameState) else -0.5 # punish if we die
         
-        if gameState.isOver():
-            score += self.getScore(gameState)*2 if self.red  else self.getScore(gameState)*-2
         return score
 
     def getFeatures(self, gameState, action):
@@ -545,7 +545,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         # say that capsules are also food
         foodList += self.getCapsules(gameState)
         if self.ateFood(gameState):
-            print("ate food")
+            # print("ate food")
             return 1.5
         if len(foodList) > 0:  # This should always be True, but better safe than sorry
             return min([self.getMazeDistance(myPos, food) for food in foodList])
@@ -639,27 +639,24 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
 
         # self.pathTaken.append(actionChosen)
         self.pathTaken.append(bestActions)
-
-        # for training data inputs, getting features:
-        # [x_0,x_2,x_3,x_7] = [minDistToEnemy, distFood, distOurSide, minDistToEnemyAsGhost, currentScore, numWalls, numFoodCarrying, isPacman, foodLeft]
+        successor = self.getSuccessor(gameState, actionChosen)
+        # [x_0,x_1,x_2,...,x_7] = [minDistToEnemy, distFood, distOurSide, minDistToEnemyAsGhost, currentScore, numWalls, numFoodCarrying, isPacman,]
         stateFeatures = []
-        stateFeatures.append(self.getEnemyDistance(gameState))
-        stateFeatures.append(self.distToFood(gameState))
-        stateFeatures.append(self.distOurSide(gameState))
-        stateFeatures.append(self.distToInvader(gameState))
-        stateFeatures.append(self.getScore(gameState))
-        stateFeatures.append(self.getNumWalls(gameState))
-        stateFeatures.append(
-            gameState.data.agentStates[self.index].numCarrying)
-        stateFeatures.append(int(gameState.getAgentState(self.index).isPacman))
-        # stateFeatures.append(len(self.getFood(gameState).asList()))
-        # print(stateFeatures)
-        # print(stateFeatures)
+        stateFeatures.append(self.getEnemyDistance(successor))
+        stateFeatures.append(self.distToFood(successor))
+        # stateFeatures.append(self.distOurSide(successor))
+        # stateFeatures.append(self.distToInvader(successor))
+        # stateFeatures.append(self.getScore(successor))
+        # stateFeatures.append(self.getNumWalls(successor))
+        # stateFeatures.append(int(successor.getAgentState(self.index).isPacman))
+        # stateFeatures.append(
+        #     successor.data.agentStates[self.index].numCarrying)
+
         if len(self.gameOutputs):
             # for training data outputs, reward and when game is finished add the game score
-            stateOutput = [self.getReward(gameState)]
+            stateOutput = [self.getReward(successor)]
         else:
-            stateOutput = [self.getReward(gameState)]
+            stateOutput = [self.getReward(successor)]
         # stateOutput = [0]
         # print(stateOutput)
         self.gameFeatures.append(stateFeatures)
@@ -762,9 +759,9 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         return False
 
     def final(self, gameState):
-        self.gameOutputs = [[i + self.getScore(gameState)/self.totalFood for i in l] for l in self.gameOutputs]
+        self.gameOutputs = [[float(i + self.getScore(gameState)/(self.totalFood/2)) for i in l] for l in self.gameOutputs]
         totalOutputs = readTrainingOutputs()+self.gameOutputs
-        #totalOutputs = []+self.gameOutputs
+        # totalOutputs = []+self.gameOutputs
 
         print(len(self.gameFeatures))
         print(len(totalOutputs))
