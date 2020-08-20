@@ -18,6 +18,8 @@ import pickle
 """
 Code based on the tutorial by:
 https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
+https://machinelearningmastery.com/pytorch-tutorial-develop-deep-learning-models/
+https://www.youtube.com/watch?v=wc-FxNENg9U
 """
 """
 layer perceptron
@@ -81,6 +83,11 @@ class MLP(Module):
 """
 DQ Network has its necessary functions for learning. 
 It will interact with MLP and agent in order to make them work
+
+Code based on the tutorial by:
+https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
+https://machinelearningmastery.com/pytorch-tutorial-develop-deep-learning-models/
+https://www.youtube.com/watch?v=wc-FxNENg9U
 """
 class DQNetwork(object):
 
