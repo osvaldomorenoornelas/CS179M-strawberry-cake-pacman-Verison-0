@@ -18,6 +18,8 @@ import pickle
 """
 Code based on the tutorial by:
 https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
+https://machinelearningmastery.com/pytorch-tutorial-develop-deep-learning-models/
+https://www.youtube.com/watch?v=wc-FxNENg9U
 """
 """
 layer perceptron
@@ -81,6 +83,11 @@ class MLP(Module):
 """
 DQ Network has its necessary functions for learning. 
 It will interact with MLP and agent in order to make them work
+
+Code based on the tutorial by:
+https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
+https://machinelearningmastery.com/pytorch-tutorial-develop-deep-learning-models/
+https://www.youtube.com/watch?v=wc-FxNENg9U
 """
 class DQNetwork(object):
 
@@ -157,9 +164,9 @@ class DQNetwork(object):
     using tutorial code from: https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
     """
     def Train(self, x, y):
-        learning_rate = 0.01
+        learning_rate = 0.001
 
-        for t in range(8000):
+        for t in range(9000):
             # Forward pass: compute predicted y by passing x to the model. Module objects
             # override the __call__ operator so you can call them like functions. When
             # doing so you pass a Tensor of input data to the Module and it produces

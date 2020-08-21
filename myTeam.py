@@ -563,7 +563,11 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         foodList += self.getCapsules(gameState)
         if self.ateFood(gameState):
             # print("ate food")
+<<<<<<< HEAD
             return 0
+=======
+            return 1.5
+>>>>>>> 254d5f39d54b4863dd6807d9c8ec580c11ebf4f7
         if len(foodList) > 0:  # This should always be True, but better safe than sorry
             return min([self.getMazeDistance(myPos, food) for food in foodList])
         return 0
