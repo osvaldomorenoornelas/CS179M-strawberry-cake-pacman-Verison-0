@@ -128,21 +128,13 @@ class DQNetwork(object):
     def loadData(self):
         #create tensors from the data file
         #for the moment, we will create temporaries from random
-        #x =  T.randn(self.actions, self.inputs) #situations
-        #y =  T.randn(self.actions, self.outputs) #results
 
         a = np.asarray(readTrainingInputs(), dtype=np.float32)
         b = np.asarray(readTrainingOutputs(), dtype=np.float32)
-        #y = Tensor([Tensor(output)for output in row] for row in readTrainingOutputs()) #results
-
-        #x = tf.convert_to_tensor(np.asarray(readTrainingInputs(), dtype=np.float32),dtype=tf.float32)
-        #print(x)
-        #y = tf.convert_to_tensor(np.asarray(readTrainingOutputs(), dtype=np.float32),dtype=tf.float32)
+        
 
         x = T.tensor(a)
         y = T.tensor(b)
-
-        print(y)
 
         return x, y
 
@@ -157,7 +149,7 @@ class DQNetwork(object):
     MSELoss measures the mean squared error
     """
     def LossFunction(self):
-        loss_fn = T.nn.MSELoss(reduction='sum')
+        loss_fn = T.nn.MSELoss(reduction='mean')
         return loss_fn
 
     """
@@ -165,10 +157,9 @@ class DQNetwork(object):
     using tutorial code from: https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
     """
     def Train(self, x, y):
+        learning_rate = 0.01
 
-        learning_rate = 1e-4
-
-        for t in range(500):
+        for t in range(8000):
             # Forward pass: compute predicted y by passing x to the model. Module objects
             # override the __call__ operator so you can call them like functions. When
             # doing so you pass a Tensor of input data to the Module and it produces
@@ -184,7 +175,11 @@ class DQNetwork(object):
 
             # Zero the gradients before running the backward pass.
             self.model.zero_grad()
-
+# baised samples
+# structure nn
+#   best output should be 
+# features
+# size of layer
             # Backward pass: compute gradient of the loss with respect to all the learnable
             # parameters of the model. Internally, the parameters of each Module are stored
             # in Tensors with requires_grad=True, so this call will compute gradients for
@@ -198,7 +193,7 @@ class DQNetwork(object):
                     param -= learning_rate * param.grad
 
     """
-    To train the model we need to optamize compute, get loss, and
+    (We don't use this) To train the model we need to optamize compute, get loss, and
     update
     """
     def TrainModel(self, trainData):
@@ -256,7 +251,8 @@ class DQNetwork(object):
             #actualData = actualData.reshape((len(actualData), 1))
 
             #round class values
-            modelEval = modelEval.round()
+            modelEval = modelEval
+            # modelEval = modelEval.round()
 
             predictions.append(modelEval)
             actuals.append(actualData)
@@ -266,19 +262,20 @@ class DQNetwork(object):
         actuals     = np.vstack(actuals)
 
         #get the accuracy (will improve as iterations occur)
-        accuracy = accuracy_score(actuals.round(), predictions, normalize = False)
+        # accuracy = accuracy_score(actuals.round(), predictions, normalize = False)
+        accuracy = accuracy_score(actuals, predictions, normalize = True)
 
         return accuracy
 
     """
-    Predicts for a row of data. May have to be more specific because
+    (We don't use this) Predicts for a row of data. May have to be more specific because
     of how pacman is structured
     """
-    def predict(self, rowData):
+    def predict(self, features):
         #convert row to data
-        rowData = Tensor([rowData])
+        features = Tensor([features])
         #create a prediction
-        modelData = self.model(rowData)
+        modelData = self.model(features)
 
         #get the numpy Data
         modelData = modelData.detach().numpy()
