@@ -370,7 +370,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             (i+j)/2), gameState.data.layout.agentPositions[0][1], gameState.data.layout.agentPositions[1][1]))
         # for training data
 
-        self.gameFeatures = []
+        # self.gameFeatures = []
         # self.gameOutputs = []
         self.gameFeatures = readTrainingInputs()
         self.gameOutputs = []
@@ -563,11 +563,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         foodList += self.getCapsules(gameState)
         if self.ateFood(gameState):
             # print("ate food")
-<<<<<<< HEAD
             return 0
-=======
-            return 1.5
->>>>>>> 254d5f39d54b4863dd6807d9c8ec580c11ebf4f7
         if len(foodList) > 0:  # This should always be True, but better safe than sorry
             return min([self.getMazeDistance(myPos, food) for food in foodList])
         return 0
@@ -781,15 +777,21 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         return False
 
     def final(self, gameState):
-        self.gameOutputs = [[i + self.getScore(gameState) for i in l] for l in self.gameOutputs]
-        # print(self.gameOutputs)
-        totalOutputs = readTrainingOutputs()+self.gameOutputs
-        # totalOutputs = []+self.gameOutputs
-        
-        print(len(self.gameFeatures))
-        print(len(totalOutputs))
-        with open('./trainingInput.pickle', 'wb') as handle:
-            pickle.dump(self.gameFeatures, handle,
-                        protocol=pickle.HIGHEST_PROTOCOL)
-        with open('./trainingOutput.pickle', 'wb') as handle:
-            pickle.dump(totalOutputs, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        if self.getScore(gameState)> 0:
+            self.gameOutputs = [[i + self.getScore(gameState) for i in l] for l in self.gameOutputs]
+            # print(self.gameOutputs)
+            # totalOutputs = []+self.gameOutputs
+            totalOutputs = readTrainingOutputs()+self.gameOutputs
+            
+            print(len(self.gameFeatures))
+            print(len(totalOutputs))
+            with open('./trainingInput.pickle', 'wb') as handle:
+                pickle.dump(self.gameFeatures, handle,
+                            protocol=pickle.HIGHEST_PROTOCOL)
+            with open('./trainingOutput.pickle', 'wb') as handle:
+                pickle.dump(totalOutputs, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        else:
+                    print("loss or tie, not saving features and outputs")
+
+
+# python capture.py -b myTeam -q -n 20 -l bloxCapture;  python capture.py -r myTeam-q -n 20 -l tinyCapture;  python capture.py -b myTeam -q -n 20 -l tinyCapture; python capture.py -r myTeam -q -n 20 -l jumboCapture; python capture.py -b myTeam -q -n 20 -l jumboCapture; python capture.py -b myTeam -q -n 20 -l defaultCapture; python capture.py -r myTeam -q -n 20; python capture.py -r myTeam-q n 10 -l bloxCapture

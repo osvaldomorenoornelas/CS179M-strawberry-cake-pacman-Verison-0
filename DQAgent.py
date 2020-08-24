@@ -20,6 +20,22 @@ import torch as T
 import pickle
 import os
 
+def readDQInputs():
+    """
+    Will return the Counter of Q(s,a) from qValueFile
+    """
+    with open('./DQInput.pickle', 'rb') as handle:
+        trainingInputs = pickle.load(handle)
+    return trainingInputs
+
+
+def readDQOutputs():
+    """
+    Return the list of weights from LinearApproxFile
+    """
+    with open('./DQOutput.pickle', 'rb') as handle:
+        trainingOutputs = pickle.load(handle)
+    return trainingOutputs
 
 def readTrainingInputs():
     """
@@ -88,7 +104,7 @@ class DQAgent(ReflexCaptureAgent):
 
         # initailize input data
         self.n_actions = 5
-        self.input_dims = 4  # 8 features
+        self.input_dims = 4  # 4 features
         self.out_dims = 1  # 1 output
         self.batch_size = 0
         self.hidden_dimension = 2
@@ -111,6 +127,11 @@ class DQAgent(ReflexCaptureAgent):
         print('train data')
         self.network.Train(self.trainData, self.testData)
         print("Training succesful")
+
+        # for retraining the dq model
+        # self.gameFeatures = []
+        self.gameFeatures = readDQInputs()
+        self.gameOutputs = []
 
     def sizeOfInput(self):
         return len(self.trainData)
@@ -141,7 +162,6 @@ class DQAgent(ReflexCaptureAgent):
         # say that capsules are also food
         foodList += self.getCapsules(gameState)
         if self.ateFood(gameState):
-            # print("ate food")
             return 0
         if len(foodList) > 0:  # This should always be True, but better safe than sorry
             return min([self.getMazeDistance(myPos, food) for food in foodList])
@@ -270,6 +290,11 @@ class DQAgent(ReflexCaptureAgent):
             if temp > highestQVal:
                 bestAction = action
                 highestQVal = temp
+
+
+        # retrain model
+        self.gameFeatures.append(self.getFeatures(gameState,bestAction))
+        self.gameOutputs.append([highestQVal])
         return bestAction
 
     def chooseAction(self, gameState):
@@ -278,3 +303,18 @@ class DQAgent(ReflexCaptureAgent):
         """
         action = self.bestActionNN(gameState)
         return action
+
+    def final(self, gameState):
+            self.gameOutputs = [[i + self.getScore(gameState) for i in l] for l in self.gameOutputs]
+            # print(self.gameOutputs)
+            # totalOutputs = []+self.gameOutputs
+            totalOutputs = readDQOutputs()+self.gameOutputs
+            
+            print(len(self.gameFeatures))
+            print(len(totalOutputs))
+            with open('./DQInput.pickle', 'wb') as handle:
+                pickle.dump(self.gameFeatures, handle,
+                            protocol=pickle.HIGHEST_PROTOCOL)
+            with open('./DQOutput.pickle', 'wb') as handle:
+                pickle.dump(totalOutputs, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
