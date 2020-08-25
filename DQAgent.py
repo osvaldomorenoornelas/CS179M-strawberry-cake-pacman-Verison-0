@@ -111,6 +111,7 @@ class DQAgent(ReflexCaptureAgent):
 
         self.middleOfBoard = tuple(map(lambda i, j: math.floor(
             (i + j) / 2), gameState.data.layout.agentPositions[0][1], gameState.data.layout.agentPositions[1][1]))
+        self.totalFood = len(self.getFood(gameState).asList())
 
         # declare Q-Value Network
 
@@ -302,6 +303,20 @@ class DQAgent(ReflexCaptureAgent):
         Decides on the best action given the current state and looks at the Q table
         """
         action = self.bestActionNN(gameState)
+        # if we have at least 20% of the food needed to win and we are tied or losing, bring it back home
+        MIN_FOOD = 2
+        foodToWin = (self.totalFood/2) - MIN_FOOD
+        if gameState.data.agentStates[self.index].numCarrying >= math.ceil(foodToWin*.20)  and self.getScore(gameState) <= 0:
+            print("go home")
+            bestDist = 9999
+            actions = gameState.getLegalActions(self.index)
+            for action in actions:
+                successor = self.getSuccessor(gameState, action)
+                dist = self.distOurSide(successor)
+                if dist < bestDist:
+                    bestAction = action
+                    bestDist = dist
+            return bestAction
         return action
 
     def final(self, gameState):

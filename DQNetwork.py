@@ -43,6 +43,25 @@ def readTrainingOutputs():
     with open('./trainingOutput.pickle', 'rb') as handle:
         trainingOutputs = pickle.load(handle)
     return trainingOutputs
+
+
+def readDQInputs():
+    """
+    Will return the Counter of Q(s,a) from qValueFile
+    """
+    with open('./DQInput.pickle', 'rb') as handle:
+        trainingInputs = pickle.load(handle)
+    return trainingInputs
+
+
+def readDQOutputs():
+    """
+    Return the list of weights from LinearApproxFile
+    """
+    with open('./DQOutput.pickle', 'rb') as handle:
+        trainingOutputs = pickle.load(handle)
+    return trainingOutputs
+    
 class MLP(Module):
     def __init__(self, inputNumber):
         #call super constructor for Module
@@ -136,8 +155,8 @@ class DQNetwork(object):
         #create tensors from the data file
         #for the moment, we will create temporaries from random
 
-        a = np.asarray(readTrainingInputs(), dtype=np.float32)
-        b = np.asarray(readTrainingOutputs(), dtype=np.float32)
+        a = np.asarray(readDQInputs(), dtype=np.float32)
+        b = np.asarray(readDQOutputs(), dtype=np.float32)
         
 
         x = T.tensor(a)
@@ -166,7 +185,7 @@ class DQNetwork(object):
     def Train(self, x, y):
         learning_rate = 0.001
 
-        for t in range(9000):
+        for t in range(10000):
             # Forward pass: compute predicted y by passing x to the model. Module objects
             # override the __call__ operator so you can call them like functions. When
             # doing so you pass a Tensor of input data to the Module and it produces
@@ -177,16 +196,16 @@ class DQNetwork(object):
             # loss.
             lossF = self.LossFunction()
             loss  = lossF(y_pred, y)
-            if t % 100 == 99:
-                print(t, loss.item())
+            # if t % 100 == 99:
+            #     print(t, loss.item())
 
             # Zero the gradients before running the backward pass.
             self.model.zero_grad()
-# baised samples
-# structure nn
-#   best output should be 
-# features
-# size of layer
+            # baised samples
+            # structure nn
+            #   best output should be 
+            # features
+            # size of layer
             # Backward pass: compute gradient of the loss with respect to all the learnable
             # parameters of the model. Internally, the parameters of each Module are stored
             # in Tensors with requires_grad=True, so this call will compute gradients for
