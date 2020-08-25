@@ -307,7 +307,6 @@ class DQAgent(ReflexCaptureAgent):
         MIN_FOOD = 2
         foodToWin = (self.totalFood/2) - MIN_FOOD
         if gameState.data.agentStates[self.index].numCarrying >= math.ceil(foodToWin*.20)  and self.getScore(gameState) <= 0:
-            print("go home")
             bestDist = 9999
             actions = gameState.getLegalActions(self.index)
             for action in actions:
