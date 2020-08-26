@@ -256,7 +256,6 @@ class DQAgent(ReflexCaptureAgent):
         Then puts the inputs and outputs into respective files
         """
         self.gameOutputs = [[i + self.getScore(gameState) for i in l] for l in self.gameOutputs]
-        print(self.gameOutputs)
         # totalOutputs = []+self.gameOutputs
         totalOutputs = readDQOutputs()+self.gameOutputs
 
