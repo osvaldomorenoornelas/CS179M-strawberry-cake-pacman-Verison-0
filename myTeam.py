@@ -24,11 +24,9 @@ import game
 from util import nearestPoint
 import math
 import numpy as np
-#################
-# Team creation #
-#################
 
 import pickle
+
 
 
 # If you change these, you won't affect the server, so you can't cheat
@@ -54,7 +52,6 @@ def readTrainingInputs():
         trainingInputs = pickle.load(handle)
     return trainingInputs
 
-
 def readTrainingOutputs():
     """
     Return the list of weights from LinearApproxFile
@@ -63,6 +60,9 @@ def readTrainingOutputs():
         trainingOutputs = pickle.load(handle)
     return trainingOutputs
 
+#################
+# Team creation #
+#################
 
 def createTeam(firstIndex, secondIndex, isRed,
                first='OffensiveReflexAgent', second='DefensiveReflexAgent'):
@@ -89,8 +89,6 @@ def createTeam(firstIndex, secondIndex, isRed,
 ##########
 
 # copied from baselineTeam.py
-
-
 class ReflexCaptureAgent(CaptureAgent):
     """
     A base class for reflex agents that chooses score-maximizing actions
@@ -368,13 +366,12 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         self.pathTaken = []
         self.middleOfBoard = tuple(map(lambda i, j: math.floor(
             (i+j)/2), gameState.data.layout.agentPositions[0][1], gameState.data.layout.agentPositions[1][1]))
-        # for training data
-
-        # self.gameFeatures = []
-        # self.gameOutputs = []
-        self.gameFeatures = readTrainingInputs()
-        self.gameOutputs = []
         self.totalFood = len(self.getFood(gameState).asList())
+       
+        # for training data
+        self.gameFeatures = [] # uncomment to retrain data
+        # self.gameFeatures = readTrainingInputs()
+        self.gameOutputs = []
 
     def getEnemyDistance(self, gameState):
         enemies = [gameState.getAgentState(i)
@@ -422,7 +419,6 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                 return 1
         return 0
 
-
     def getReward(self, gameState):
         """
         Gets the reward of the current gameState
@@ -450,6 +446,9 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         return score
 
     def getFeatures(self, gameState, action):
+        """
+        Returns the feature of the state
+        """
         features = util.Counter()
         successor = self.getSuccessor(gameState, action)
         foodList = self.getFood(successor).asList()
@@ -490,16 +489,13 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         if action == rev:
             features['reverse'] = 1
 
-        # Here we will go to the death coordinate
-
         # Get the death coordinates
         self.getDeathCoordinates(gameState)
 
         # if there are death coordinates
         if self.deathCoord and self.eatOrRetreat(gameState):
             # set sail to those coordinates
-            features['distanceToFood'] = self.getMazeDistance(
-                myPos, self.deathCoord)
+            features['distanceToFood'] = self.getMazeDistance(myPos, self.deathCoord)
         return features
 
     def getWeights(self, gameState, action):
@@ -535,23 +531,6 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                 return True
         else:
             return False
-
-    def distToInvader(self, gameState):
-        """
-        Returns distance to an invader
-        """
-        myPos = gameState.getAgentState(self.index).getPosition()
-        enemies = [gameState.getAgentState(i)
-                   for i in self.getOpponents(gameState)]
-        numEnemies = len([a for a in enemies if a.isPacman])
-        # holds the invaders that we can see
-        invaders = [a for a in enemies if a.isPacman and a.getPosition()
-                    != None]
-        if len(invaders):
-            dists = [self.getMazeDistance(
-                myPos, a.getPosition()) for a in invaders]
-            return min(dists)
-        return 0
 
     def distToFood(self, gameState):
         """
@@ -592,6 +571,9 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         return False
 
     def distOurSide(self, gameState):
+        """
+        Calculates the distance to get back to our team's side as PacMan
+        """
         if not gameState.getAgentState(self.index).isPacman:
             return 0
         myState = gameState.getAgentState(self.index)
@@ -604,19 +586,10 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                        ) if self.red else (ourSide[0] + 1, ourSide[1])
         return self.getMazeDistance(myPos, ourSide)
 
-    def getNumWalls(self, gameState):
-        """
-        Returns the number of walls in our way.
-        This would be the 5 - number of legal actions at our current state
-        Because stop is always a legal action
-        """
-        return 5 - len(gameState.getLegalActions(self.index))
-
     def chooseAction(self, gameState):
         """
         Picks among the actions with the highest Q(s,a).
         """
-        # print(gameState.agentDistances)
         actions = gameState.getLegalActions(self.index)
         self.isCapsuleEaten(gameState)
         actionChosen = None
@@ -628,8 +601,6 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 
-        # for a in range(len(bestActions)):
-        # print(str(a))
         # decrement scaredTimers if needed.
         for i in range(len(self.scaredGhostTimers)):
             self.scaredGhostTimers[i] -= 1 if self.scaredGhostTimers[i] > 0 else 0
@@ -647,56 +618,38 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
 
         if len(self.pathTaken) > 0:
             # call choice function
-            # print("Here len(self.pathTaken) > 0")
             actionChosen = self.bestPath(gameState, bestActions)
         else:
             # else choose a random action
-            # print("Here choose first Action")
             actionChosen = bestActions[0]
-            # actionChosen = random.choice(bestActions)
 
-        # self.pathTaken.append(actionChosen)
         self.pathTaken.append(bestActions)
         successor = self.getSuccessor(gameState, actionChosen)
-        # [x_0,x_1,x_2,...,x_7] = [minDistToEnemy, distFood, distOurSide, minDistToEnemyAsGhost, currentScore, numWalls, numFoodCarrying, isPacman,]
+        # [x_0,x_1,x_2,...,x_7] = [minDistToEnemy, distFood, distOurSide,currentScore]
         stateFeatures = []
         stateFeatures.append(self.getEnemyDistance(successor))
         stateFeatures.append(self.distToFood(successor))
         stateFeatures.append(self.distOurSide(successor))
-        # stateFeatures.append(self.distToInvader(successor))
         stateFeatures.append(self.getScore(successor))
-        # stateFeatures.append(self.getNumWalls(successor))
-        # stateFeatures.append(int(successor.getAgentState(self.index).isPacman))
-        # stateFeatures.append(
-        #     successor.data.agentStates[self.index].numCarrying)
-        # print(stateFeatures)
         if len(self.gameOutputs):
             # for training data outputs, reward and when game is finished add the game score
             stateOutput = [self.getReward(successor)]
         else:
             stateOutput = [self.getReward(successor)]
-        # stateOutput = [0]
-        # print(stateOutput)
         self.gameFeatures.append(stateFeatures)
         self.gameOutputs.append(stateOutput)
         return actionChosen
-
-    """
-    paths is the best actions array
-    we need to choose the best one based on cost
-    """
-
+    
     def bestPath(self, gameState, paths):
-
+        """
+        paths is the best actions array
+        we need to choose the best one based on cost
+        """
         bestChoices = [paths[0]]
-
         for p in paths:
             if p not in self.pathTaken:
-                # print("pruned")
                 bestChoices.append(p)
-
         bestChoices.sort()
-        # print("returned Val: ", bestChoices[0])
         return bestChoices[0]
 
     def isScared(self, gameState, ghostIndex):
@@ -741,23 +694,19 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                     self.deathCoord = previousGameState.getAgentPosition(
                         self.index)
 
-    """
-  This fuction checks if it is worth it to retreave what has been lost or to
-  just play as normal
-  """
 
     def eatOrRetreat(self, gameState):
-        # get the amout of food that was lost
-
+        """
+        This function checks if it is worth it to retreave what has been lost or to
+        just play as normal
+        """
         # failsafe default of 5
         foodLost = 5
-
         if self.observationHistory[-1]:
             # get the previos status of the game
             prevPrevFood = len(self.getFood(
                 self.observationHistory[0]).asList())
             prevFood = len(self.getFood(self.observationHistory[-1]).asList())
-
             # if playing as red, calculate how much food we had available in the prev game on the blue side
             # else, do the same but on the red side
             if self.red:
@@ -766,32 +715,26 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             else:
                 AgentStateScore = len(
                     self.getPreviousObservation().getRedFood().asList())
-
             # food lost is the food in current - last round
             foodLost = abs(AgentStateScore - prevFood)
-
         # if the amount of food >= 5 return true
         if foodLost >= 5:
             return True
-
         return False
 
     def final(self, gameState):
-        if self.getScore(gameState)> 0:
-            self.gameOutputs = [[i + self.getScore(gameState) for i in l] for l in self.gameOutputs]
-            # print(self.gameOutputs)
-            # totalOutputs = []+self.gameOutputs
-            totalOutputs = readTrainingOutputs()+self.gameOutputs
-            
-            print(len(self.gameFeatures))
-            print(len(totalOutputs))
-            with open('./trainingInput.pickle', 'wb') as handle:
-                pickle.dump(self.gameFeatures, handle,
-                            protocol=pickle.HIGHEST_PROTOCOL)
-            with open('./trainingOutput.pickle', 'wb') as handle:
-                pickle.dump(totalOutputs, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        else:
-                    print("loss or tie, not saving features and outputs")
+        """
+        Puts the gathered training data from this match into input and output files.
+        Will add the final score of the game before putting the output values into file
+        """
+        self.gameOutputs = [[i + self.getScore(gameState) for i in l] for l in self.gameOutputs]
+        totalOutputs = []+self.gameOutputs
+        # totalOutputs = readTrainingOutputs()+self.gameOutputs
+        print(len(self.gameFeatures))
+        print(len(totalOutputs))
+        with open('./trainingInput.pickle', 'wb') as handle:
+            pickle.dump(self.gameFeatures, handle,
+                        protocol=pickle.HIGHEST_PROTOCOL)
+        with open('./trainingOutput.pickle', 'wb') as handle:
+            pickle.dump(totalOutputs, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-
-# python capture.py -b myTeam -q -n 20 -l bloxCapture;  python capture.py -r myTeam-q -n 20 -l tinyCapture;  python capture.py -b myTeam -q -n 20 -l tinyCapture; python capture.py -r myTeam -q -n 20 -l jumboCapture; python capture.py -b myTeam -q -n 20 -l jumboCapture; python capture.py -b myTeam -q -n 20 -l defaultCapture; python capture.py -r myTeam -q -n 20; python capture.py -r myTeam-q n 10 -l bloxCapture
