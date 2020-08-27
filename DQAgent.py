@@ -13,13 +13,10 @@ from myTeam import ReflexCaptureAgent
 from myTeam import DefensiveReflexAgent
 from IPython.display import clear_output
 import numpy as np
-from DQNetwork import MLP
 from DQNetwork import DQNetwork
 import torch as T
-
 import pickle
 import os
-
 
 def readDQInputs():
     """
