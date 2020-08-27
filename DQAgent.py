@@ -68,16 +68,9 @@ class DQAgent(ReflexCaptureAgent):
         self.start = gameState.getAgentPosition(self.index)
         CaptureAgent.registerInitialState(self, gameState)
 
-        # Q Value functions
-        self.epsilon = 0.005  # exploration prob
-        self.alpha = 0.01
-        self.gamma = 0.8  # discount rate to prevent overfitting
-
         # initailize input data
-        self.n_actions = 5
         self.input_dims = 4  # 4 features
         self.out_dims = 1  # 1 output
-        self.batch_size = 0
         self.hidden_dimension = 2
 
         self.middleOfBoard = tuple(map(lambda i, j: math.floor(
@@ -85,7 +78,7 @@ class DQAgent(ReflexCaptureAgent):
         self.totalFood = len(self.getFood(gameState).asList())
 
         # declare Q-Value Network
-        self.network = DQNetwork(self.gamma, self.epsilon, self.n_actions, self.input_dims,self.out_dims, self.batch_size, self.hidden_dimension)
+        self.network = DQNetwork(self.input_dims, self.out_dims, self.hidden_dimension)
 
         # load the data
         print('get data')

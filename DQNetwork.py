@@ -73,28 +73,16 @@ https://www.youtube.com/watch?v=wc-FxNENg9U
 """
 class DQNetwork(object):
 
-    def __init__(self, gamma, epsilon, n_actions, input_dims,
-                 out_dims, batch_size, hidden_dimension):
+    def __init__(self, input_dims, out_dims, hidden_dimension):
 
-        #discount factor
-        self.gamma = gamma
-
-        #probability
-        self.epsilon = epsilon
-        #number of actions
-        self.actions = n_actions
         #input size
         self.inputs = input_dims
         # input size
         self.outputs = out_dims
 
-        #data batch input size
-        self.batch = batch_size
-
         #hidden dimension
         self.hidden = hidden_dimension
 
-        #self.model = self.Model()
         #define the model
         self.model = T.nn.Sequential(T.nn.Linear(self.inputs, self.hidden),
                      T.nn.ReLU(), T.nn.Linear(self.hidden, self.outputs), )
