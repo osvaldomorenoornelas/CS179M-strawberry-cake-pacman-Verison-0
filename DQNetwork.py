@@ -18,14 +18,14 @@ import pickle
 """
 Code based on the tutorial by:
 https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
+
 https://machinelearningmastery.com/pytorch-tutorial-develop-deep-learning-models/
+
 https://www.youtube.com/watch?v=wc-FxNENg9U
 """
+
 """
-layer perceptron
-define the model that will be used
-The class implementation is for a simple layer, not for a multilayer
-Derives from Module class in torch
+This module reads the training data from a pickle file for the inputs
 """
 def readTrainingInputs():
     """
@@ -35,7 +35,9 @@ def readTrainingInputs():
         trainingInputs = pickle.load(handle)
     return trainingInputs
 
-
+"""
+This module reads the training data from a pickle file for the outputs
+"""
 def readTrainingOutputs():
     """
     Return the list of weights from LinearApproxFile
@@ -44,7 +46,9 @@ def readTrainingOutputs():
         trainingOutputs = pickle.load(handle)
     return trainingOutputs
 
-
+"""
+This module reads the training data from a pickle file for the inputs from an alternative file
+"""
 def readDQInputs():
     """
     Will return the Counter of Q(s,a) from qValueFile
@@ -53,7 +57,9 @@ def readDQInputs():
         trainingInputs = pickle.load(handle)
     return trainingInputs
 
-
+"""
+This module reads the training data from a pickle file for the outputs from an alternative file
+"""
 def readDQOutputs():
     """
     Return the list of weights from LinearApproxFile
@@ -63,12 +69,14 @@ def readDQOutputs():
     return trainingOutputs
 
 """
-DQ Network has its necessary functions for learning. 
-It will interact with MLP and agent in order to make them work
+This is the DQNetwok class. It gets the data, declares the model , trains, and make predictions
+DQ Network has its necessary functions for learning.
 
-Code based on the tutorial by:
+Code based on the tutorial in:
 https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
+
 https://machinelearningmastery.com/pytorch-tutorial-develop-deep-learning-models/
+
 https://www.youtube.com/watch?v=wc-FxNENg9U
 """
 class DQNetwork(object):
@@ -83,10 +91,13 @@ class DQNetwork(object):
         #hidden dimension
         self.hidden = hidden_dimension
 
-        #define the model
+        #define the sequential model
         self.model = T.nn.Sequential(T.nn.Linear(self.inputs, self.hidden),
                      T.nn.ReLU(), T.nn.Linear(self.hidden, self.outputs), )
-
+    
+    """
+    This function sets the model in case there is another trained model saved or ready to use
+    """
     def setModel(self, model):
         self.model = model
 
@@ -94,15 +105,16 @@ class DQNetwork(object):
     Load the data into x and y 
     """
     def loadData(self):
-        #create tensors from the data file
-        #for the moment, we will create temporaries from random
+        #create numpy arrays from the data file
 
         a = np.asarray(readTrainingInputs(), dtype=np.float32)
         b = np.asarray(readTrainingOutputs(), dtype=np.float32)
 
+        #convert arrays to tensors
         x = T.tensor(a)
         y = T.tensor(b)
 
+        #return tensors
         return x, y
 
     """
@@ -120,15 +132,16 @@ class DQNetwork(object):
         return loss_fn
 
     """
-    Train model using a diff method
-    using tutorial code from: https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
+    Train model using the nn module
+    using example code from: https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
     """
     def Train(self, x, y):
+        #declaring the learning rate
         learning_rate = 0.001
 
+        #iterate 10000 in order to achieve a plateau in the loss function
         for t in range(10000):
-            # Forward pass: compute predicted y by passing x to the model. Module objects
-            # override the __call__ operator so you can call them like functions. When
+            # Forward pass: compute predicted y by passing x to the model. When
             # doing so you pass a Tensor of input data to the Module and it produces
             # a Tensor of output data.
             y_pred = self.model(x)
@@ -142,15 +155,9 @@ class DQNetwork(object):
 
             # Zero the gradients before running the backward pass.
             self.model.zero_grad()
-            # baised samples
-            # structure nn
-            #   best output should be 
-            # features
-            # size of layer
+        
             # Backward pass: compute gradient of the loss with respect to all the learnable
-            # parameters of the model. Internally, the parameters of each Module are stored
-            # in Tensors with requires_grad=True, so this call will compute gradients for
-            # all learnable parameters in the model.
+            # parameters of the model. 
             loss.backward()
 
             # Update the weights using gradient descent. Each parameter is a Tensor, so
@@ -160,8 +167,14 @@ class DQNetwork(object):
                     param -= learning_rate * param.grad
 
     """
-    Predicts for a row of data. May have to be more specific because
-    of how pacman is structured
+    Predicts for a row of data. Pass in the set of features to the model
+    The model will return a tensor with the output corresponding to the
+    set of inputs.
+
+    Based on examples from
+    https://machinelearningmastery.com/pytorch-tutorial-develop-deep-learning-models/
+
+    https://www.youtube.com/watch?v=wc-FxNENg9U
     """
     def predict(self, features):
         #convert row to data
@@ -171,6 +184,8 @@ class DQNetwork(object):
 
         #get the numpy Data
         modelData = modelData.detach().numpy()
+
+        #return the output back to best choice
         return modelData
 
 

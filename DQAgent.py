@@ -92,8 +92,8 @@ class DQAgent(ReflexCaptureAgent):
         print("Training successful")
 
         # for retraining the dq model
-        # self.gameFeatures = []
-        self.gameFeatures = readDQInputs()
+        self.gameFeatures = []
+        # self.gameFeatures = readDQInputs()
         self.gameOutputs = []
 
     def sizeOfInput(self):
@@ -246,8 +246,8 @@ class DQAgent(ReflexCaptureAgent):
         Then puts the inputs and outputs into respective files
         """
         self.gameOutputs = [[i + self.getScore(gameState) for i in l] for l in self.gameOutputs]
-        # totalOutputs = []+self.gameOutputs
-        totalOutputs = readDQOutputs()+self.gameOutputs
+        totalOutputs = []+self.gameOutputs
+        # totalOutputs = readDQOutputs()+self.gameOutputs
 
         print(len(self.gameFeatures))
         print(len(totalOutputs))
